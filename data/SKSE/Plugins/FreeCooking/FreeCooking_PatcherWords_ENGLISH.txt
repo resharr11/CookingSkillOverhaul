@@ -1,0 +1,163 @@
+# Cooking Skill Overhaul patcher word list (English).
+# Translators: copy this file, rename ENGLISH to your game language (for example FreeCooking_PatcherWords_RUSSIAN.txt),
+# keep the first column as it is and replace the words after it. Save as UTF-8. Several lists can be installed at once.
+# Words are matched without regard to case. For languages written without spaces (Chinese, Japanese) a word is found
+# anywhere in a name. For other languages a word must stand on its own; plural endings s / es / ies are ignored.
+# Lines: <kind><TAB><what><TAB><words separated by commas>. Lines starting with # are notes.
+
+# ---- Ingredient groups. A word written with ~ is generic: any other group word in the name wins over it.
+# Otherwise the word nearest the end of the name wins ("Goat Cheese" is cheese), then the longer phrase.
+GROUP	Dragon parts	dragon scale, dragon bone, dragon heart, dragon blood, dragon claw, dragon tooth, dragon egg, dragon eye, dragon heartscale, dragon meat, dragon tail
+GROUP	Game meat	beef, venison, goat, horse meat, horse, rabbit, boar, chicken, pheasant, ash hopper leg, ash hopper meat, dog meat, mutton, lamb, pork, ~ham, ~bacon, ~sausage, ~jerky, deer, elk, fox, wolf meat, bear meat, sabre cat meat, ~meat, ~steak, ~haunch, ~cutlet, ~chop, ~rib, ~ribs, poultry, duck, goose, quail, turkey
+GROUP	Big game	mammoth, horker, mammoth snout, mammoth meat, horker meat, whale, netch
+GROUP	Shellfish	clam, mudcrab leg, mudcrab, crab, barnacle, mussel, oyster, shrimp, lobster, scallop, crayfish, snail
+GROUP	River fish	salmon, carp, catfish, pond fish, perch, longfin, river betty, spadetail, histcarp, bucket fish, trout, pike, bass, bleak, shiner, minnow, ~fish, slaughterfish
+GROUP	Cold-water fish	arctic char, arctic grayling, grayling, cod, cabezon, herring, char, halibut
+GROUP	Exotic fish	angler, angelfish, glassfish, glass catfish, dragonfish, vampire fish, salmon roe, roe, caviar, anthias, pearlfish, spadefish, sunfish, goldfish, tripod fish, slaughterfish egg, eel
+GROUP	Vegetables	cabbage, potato, leek, carrot, tomato, gourd, ash yam, yam, corkbulb, onion, turnip, beet, beetroot, radish, cucumber, pumpkin, squash, lettuce, spinach, pea, peas, bean, beans, corn, pepper, eggplant, celery, parsnip, artichoke, asparagus, broccoli, kale, zucchini, courgette, okra, chickpea, lentil, pickle, ~vegetable
+GROUP	Fruit & nuts	apple, alocasia, ironwood nut, ~nut, pear, plum, peach, cherry, orange, lemon, lime, melon, fig, date, banana, apricot, avocado, coconut, watermelon, cantaloupe, kiwi, mango, papaya, grapefruit, pineapple, guava, lychee, pomegranate, almond, walnut, chestnut, hazelnut, acorn, pumpkin seed, ~seed, ~fruit
+GROUP	Berries	snowberry, juniper, jazbay, comberry, ~berry, strawberry, blueberry, blackberry, raspberry, cranberry, lingonberry, elderberry, gooseberry, grape
+GROUP	Sweeteners	honey, honeycomb, moon sugar, ~sugar, syrup, molasses
+GROUP	Flowers & herbs	mountain flower, lavender, elves ear, trama root, coda flower, gold kanet, hackle lo, redwort, roobrush, stoneflower, ~flower, ~herb, mint, thyme, rosemary, sage, basil, parsley, dill, chamomile, heather, st jahn's wort, hyacinth, ~petal, ~leaf, tea leaf
+GROUP	Glowing fungi	glowing mushroom, gleamblossom, luminous russula, ambrosia, aster bloom, bog beacon, hydnum azure
+GROUP	Mushrooms	white cap, blisterwort, fly amanita, bleeding crown, mora tapinella, scaly pholiota, blister pod, fungus stalk, hypha facia, wisp stalk, worms head cap, ~mushroom, ~fungus, toadstool, truffle, ~cap
+GROUP	Hot herbs	fire salt, dragon's tongue, flame stalk, fire petal, chili, chilli, hot pepper, ginger, mustard, horseradish
+GROUP	Cold herbs	frost mirriam, frost salt, thistle, mirriam
+GROUP	Wetland produce	swamp fungal pod, netch jelly, marshmerrow, void salt, storm salt, red kelp, kelp, scrib jelly, ash hopper jelly, seaweed, algae, reed, cattail
+GROUP	Staples	water, waterskin, salt, butter, milk, flour, egg, wheat, garlic, bread, saltrice, ~oil, dough, batter, yeast, grain, barley, oat, oats, rye, cream, lard, vinegar, ~spice, ~seasoning, pepper corn, peppercorn, cinnamon, clove, nutmeg, saffron, vanilla, turmeric, cumin, paprika, baguette, cornmeal, pasta, noodle, rice, millet, yogurt, yoghurt
+GROUP	Cheese	cheese, cheese wheel, cheese wedge, cheese bowl, curd, cheddar, gouda, brie, parmesan, mozzarella, feta, gorgonzola, camembert, roquefort, ricotta
+GROUP	Drinks	ale, mead, wine, brandy, flin, shein, matze, sujamma, beer, rum, whiskey, whisky, vodka, spirit, liquor, cider, juice, tea, coffee, rye whiskey, cocoa, brew, kefir, kvass
+GROUP	Claws, teeth & horns	antler, claw, bone meal, tusk, beak, teeth, tooth, horn, fang, talon, bone
+GROUP	Hides, scales & shells	husk, hide, chitin, pearl, scale, wax, fin, shell, pelt, skin, leather, hair, fur, wool
+GROUP	Feathers & wings	feather, wing, moth, butterfly
+GROUP	Insects & eggs	chaurus egg, bee, antennae, dartwing, thorax, spider egg, blissbug, ichor, ~insect, beetle, dragonfly, darner, firefly, cricket, ~larva, ~larvae, ~grub, ~worm, egg sac
+GROUP	Fat & flesh	troll fat, giant's toe, skeever tail, mort flesh, fat, flesh, tail, toe, heart, liver, kidney, tongue, blood, gut, intestine, brain, gizzard, offal
+GROUP	Eyes, ears & tongues	eye, ear, eyeball, hunger tongue
+GROUP	Magical remains	spawn ash, daedra heart, dwarven oil, ectoplasm, nirnroot, wisp wrapping, daedra silk, imp gall, lichor, sload soap, void essence, glow dust, vampire dust, ~soul, ~essence, ~dust, ~salts
+GROUP	Roots, bark & wild plants	briar heart, canis root, creep cluster, spriggan wood, emperor parasol, scathecraw, grass pod, lichen, hanging moss, spriggan sap, taproot, tundra cotton, gnarl bark, kresh fiber, withering moon, bloodgrass, spiddal stick, rot scale, screaming maw, thorn hook, ~root, ~bark, ~moss, ~sap, ~twig, ~stick, ~grass, ~fiber, ~cotton, ~resin, ~pod
+GROUP	Poisonous plants	jarrin root, poison bloom, imp stool, namira's rot, nightshade, bittergreen, bunglers bane, chokeberry, chokeweed, congealed putrescence, daedra venin, harrada, deathbell, monkshood, hemlock, wolfsbane, belladonna
+GROUP	Human & mer remains	human flesh, human heart, falmer ear
+
+# ---- Words that keep an item out entirely (spoiled stages, test records).
+SKIP	spoiled, moldy, mouldy, rotten, stale, rotting, filler, test, dummy, placeholder, template, token
+# ---- Special cases: kept out of the pot and listed in the Misc section (a poisoned food is for planting on someone).
+MISC	poisoned
+# ---- Words that make a food a finished dish (never a pot ingredient). The tier is used when the dish becomes a Cooking Skill Overhaul dish.
+DISH	Elaborate	baklava, stew, chowder, bisque, fondue, pie, tart, cake, crostata, dumpling, pastry, pudding, casserole, gumbo, curry, lasagna, quiche, strudel, torte, gateau, roulade
+DISH	Prepared	kissel, coddle, pastel, pasteles, sauce, gazpacho, hummus, dip, pesto, marinara, fricassee, scramble, mashed, oatmeal, canape, canapé, soup, broth, loaf, treat, porridge, salad, sandwich, cookie, biscuit, muffin, scone, waffle, pancake, crepe, croissant, bun, roll, taffy, candy, jam, jelly roll, delight, platter, skewer, kebab, omelette, omelet, carpaccio, toast, stuffed, slice of cake, pizza, burger, burrito, taco, sushi, risotto, ramen, cobbler, crumble, custard, mousse, sorbet, ice cream, puff, stuffing, frittata, fritata, falafel, fudge, danish, ravioli, plate, satay, poutine, chili con carne, jellied, candied, sugared, in a blanket, fritter, gnocchi, dumplings, goulash, stroganoff, hash, pate, terrine
+DISH	Simple	braised, glazed, cooked, grilled, roast, roasted, steamed, baked, charred, fried, boiled, seared, sauteed, poached, toasted
+# ---- Cuts of meat cooked whole. A recipe of one ingredient named with one of these is a Simple dish ("Elk Steak"), not a
+# preparation step, unless the name also has an UNCOOKED word ("Raw Bear Steak" is only cut). They don't set a tier.
+CUT	steak, haunch, chop, chops, cutlet
+UNCOOKED	raw, uncooked
+# ---- Baked foods: made only at an oven, like our pies and breads, and they keep their flour. BAKED words count only as the
+# ---- last word of the name ("Walnut Bread" is baked, "Bread Soup" is a soup), not counting a SERVING word after it
+# ---- ("Bread Roll Basket"), and also at the end of a longer word ("cupcake", "cornbread"); BAKING words count anywhere.
+BAKED	pie, tart, tartlet, cake, crostata, pastry, pasty, quiche, strudel, torte, gateau, bread, muffin, scone, cookie, biscuit, croissant, bun, roll, cobbler, crumble, pizza, danish, dumpling, baguette, pretzel, brownie, bagel, turnover, puff, brioche, focaccia, ciabatta, naan, pita, biscotti, baklava, eclair, macaron, meringue, souffle, casserole, lasagna, lasagne, gratin, calzone, empanada, hardtack
+BAKING	baked, bake, au gratin, in a blanket
+SERVING	plate, platter, basket, pile, dish, tray
+# ---- A name ending in one of these is not baked, though it ends in a baked word (a pancake is fried, sweetbread is offal).
+NOTBAKED	pancake, hotcake, griddlecake, johnnycake, sweetbread, magpie
+# ---- Dough dishes that aren't baked (boiled, fried, griddled): they keep their flour like baked ones but stay at the pot.
+# ---- DOUGH words count as the last word (or the end of a longer word); DOUGHANY words anywhere in the name.
+DOUGH	pasta, noodle, ravioli, gnocchi, spaetzle, macaroni, spaghetti, waffle, pancake, crepe, blini, blintz, fritter, doughnut, donut, churro, tempura, pierogi, dumpling
+DOUGHANY	battered, batter
+# ---- Words left out when an ingredient names a general dish ("Raw Goat Meat" in Meat Stew cooks "Goat Stew").
+SHORTDROP	raw, meat, leg, legs, of, breast, snout, haunch, fillet, filet, flank, loin, rib, ribs, chop, cutlet, slice, sliced, chunk, piece, fresh, cut, whole, half, tail
+# ---- Food already preserved: not a raw meat or fish a general dish cooks (Scrib Jerky doesn't grill).
+PRESERVED	jerky, cured, smoked, dried, salted
+# ---- A leading word that marks a variant of an existing dish, not a new one.
+VARIANT	hot, steaming, warm, heated, chilled, cold, seasoned, spiced, salted, sweet, spicy
+# ---- Words that don't name a particular ingredient: a dish name with only these doesn't name the ingredient ("Raw Mammoth
+# Meat" is named by "mammoth", never by "raw" or "meat"). Generic group words (written with ~ above) never count either.
+PLAIN	raw, fresh, piece, slice, sliced, chunk, chopped, diced, minced, ground, fillet, filet, leg, small, large, big, dried, smoked, salted, cured, wild, edible, bunch, handful, jug, bottle, sack, bowl, cup, wedge, wheel, half, whole, fine, prime, tender
+# ---- Words that join two names, like "Eye of Fox" or "Mead with Juniper": the group comes from the words before them.
+JOIN	of, with, in, and
+# ---- Words that join two foods into one dish ("Goat and Potatoes", "Milk and Honey Tea"): a found or sold food named
+# ---- with one, where both sides name a food, is a finished dish, never a pot ingredient.
+COMBINE	and, with
+# ---- Our own flavour words. A dish name starting with one loses it (we add our own).
+FLAVOUR	mighty, brainy, hearty, sneaky, spicy, chilly, zesty, earthy
+# ---- Salt: ignored when counting a recipe's ingredients and never a recipe slot.
+SALT	salt, salt pile, salts
+# ---- Restrictions.
+# ---- Words for people. Their remains go to the Human & mer remains group (and need the Ring of Namira).
+PEOPLE	human, man, woman, falmer, elf, elven, mer, orc, breton, dunmer, altmer, bosmer, nord, imperial, redguard, khajiit, argonian, werewolf, werebear
+NAMIRA	daedra, daedroth, dremora, hagraven, vampire, ectoplasm, draugr, mort, imp, void, spawn, watcher, bone, skeleton
+NAMIRA_SAFE_END	venin, venom, stool, salt, salts, fish, root, flower, cap, leaf, petal, moss, cluster, berry, mushroom, fungus, pod, bloom, bark, wood, sap, dartwing, darner, moth, butterfly, wing, fly
+DRAGON_BODY	scale, scales, bone, bones, heart, heartscale, heartscales, blood, tooth, teeth, claw, claws, egg, eye, meat, tail, horn, fang, skull
+# ---- Keywords other mods put on items (editor IDs). They are trusted before name words.
+KEYWORD	VendorItemDrinkAlcohol	Drinks
+# Plain water is a Staple and a drink ingredient: it makes a meal or a drink last longer and counts as one of a dragon
+# brew's drink ingredients. The keyword is checked first; mods that don't tag their water are caught by the WATER
+# category below. Water stays an ingredient even when a mod makes it at the pot (boiling it, filling a waterskin):
+# that recipe stays in Misc.
+KEYWORD	VendorItemDrinkWater	Staples
+KEYWORD	VendorItemFoodMeat	Game meat
+KEYWORD	VendorItemFoodMeatSmall	Game meat
+KEYWORD	VendorItemFoodCooked	DISH
+KEYWORD	VendorItemFoodStew	DISH
+KEYWORD	_DS_KW_Food_Soup	DISH
+KEYWORD	FoodTypeSandwich	DISH
+KEYWORD	HISTrapBaitKeyword	SKIP
+# ---- Recipe categories: which new ingredients join Cooking Skill Overhaul's "any ..." recipe slots.
+# CATEGORY <category> <groups that belong to it> ; <words that put an ingredient in it>
+CATEGORY	vegetable	Vegetables;
+CATEGORY	dairy	Cheese; butter, milk, cream, curd, yogurt, yoghurt
+CATEGORY	cheese	Cheese;
+CATEGORY	drink	Drinks;
+CATEGORY	sweetener	Sweeteners;
+CATEGORY	grain	; wheat, grain, barley, oat, oats, rye, rice, saltrice, millet
+CATEGORY	fruit	Fruit & nuts, Berries;
+CATEGORY	herb	Flowers & herbs;
+CATEGORY	herbsalt	Flowers & herbs; salt
+CATEGORY	mushroom	Mushrooms;
+CATEGORY	egg	; egg, roe
+CATEGORY	bread	; bread, loaf, baguette, naan, flatbread
+CATEGORY	flour	; flour, dough, batter, cornmeal
+CATEGORY	vegherbsalt	Vegetables, Flowers & herbs; salt
+CATEGORY	vegmush	Vegetables, Mushrooms;
+CATEGORY	fish	River fish, Cold-water fish, Exotic fish;
+CATEGORY	fruitherb	Fruit & nuts, Berries, Flowers & herbs;
+# ---- Flavour exceptions inside a group (the group's own flavour applies otherwise).
+# FLAVOURWORD <group> <flavour> <words>
+FLAVOURWORD	Game meat	Hearty	beef, horse, goat, boar, venison, deer, elk, bear, mutton, lamb, pork, ox, bison, sabre cat
+# One animal's own flavour in whichever of these groups it lands, never offered as a choice for the other items there.
+# SPECIES <groups, split by commas> <flavour> <words>
+# Slaughterfish lives in rivers and the sea, so its meat is Zesty as a river fish or a cold-water fish (its eggs and
+# scales keep their own groups' flavours).
+SPECIES	River fish, Cold-water fish	Zesty	slaughterfish
+# A creature's obvious element wins over its group's flavour (our Ice Wraith Teeth are Chilly, not Mighty).
+FLAVOURWORD	Claws, teeth & horns	Chilly	ice wraith, frost atronach, frost troll, frostbite spider, ice
+FLAVOURWORD	Claws, teeth & horns	Spicy	flame atronach, fire atronach, fire
+FLAVOURWORD	Claws, teeth & horns	Zesty	storm atronach, storm, shock
+FLAVOURWORD	Magical remains	Chilly	ice wraith, frost atronach, frost troll, frostbite spider, ice
+FLAVOURWORD	Magical remains	Spicy	flame atronach, fire atronach, fire
+FLAVOURWORD	Magical remains	Zesty	storm atronach, storm, shock
+FLAVOURWORD	Hides, scales & shells	Chilly	ice wraith, frost atronach, frost troll, frostbite spider, ice
+FLAVOURWORD	Hides, scales & shells	Spicy	flame atronach, fire atronach, fire
+FLAVOURWORD	Hides, scales & shells	Zesty	storm atronach, storm, shock
+FLAVOURWORD	Fat & flesh	Chilly	ice wraith, frost atronach, frost troll, frostbite spider, ice
+FLAVOURWORD	Fat & flesh	Spicy	flame atronach, fire atronach, fire
+FLAVOURWORD	Fat & flesh	Zesty	storm atronach, storm, shock
+FLAVOURWORD	Eyes, ears & tongues	Chilly	ice wraith, frost atronach, frost troll, frostbite spider, ice
+FLAVOURWORD	Eyes, ears & tongues	Spicy	flame atronach, fire atronach, fire
+FLAVOURWORD	Eyes, ears & tongues	Zesty	storm atronach, storm, shock
+FLAVOURWORD	Feathers & wings	Chilly	ice wraith, frost atronach, frost troll, frostbite spider, ice
+FLAVOURWORD	Feathers & wings	Spicy	flame atronach, fire atronach, fire
+FLAVOURWORD	Feathers & wings	Zesty	storm atronach, storm, shock
+FLAVOURWORD	Insects & eggs	Chilly	ice wraith, frost atronach, frost troll, frostbite spider, ice
+FLAVOURWORD	Insects & eggs	Spicy	flame atronach, fire atronach, fire
+FLAVOURWORD	Insects & eggs	Zesty	storm atronach, storm, shock
+FLAVOURWORD	Staples	Sneaky	egg
+FLAVOURWORD	Staples	Brainy	milk
+FLAVOURWORD	Human & mer remains	Hearty	flesh, heart, blood, liver
+FLAVOURWORD	Human & mer remains	Sneaky	ear, eye, tongue
+CATEGORY	garlic	; garlic
+FLAVOURWORD	Staples	Earthy	garlic
+CATEGORY	nonalcohol	; juice, tea, water, coffee, milk, broth, cocoa, kefir
+CATEGORY	dragondrink	; scale, scales
+# Water: what counts as drinking water (any fill level of a waterskin). Water named with a SALTWATER word is sea water,
+# only something to boil into drinking water: it is left out.
+CATEGORY	water	; water, waterskin
+CATEGORY	saltwater	; salt, salty, sea, seawater, saltwater, brine

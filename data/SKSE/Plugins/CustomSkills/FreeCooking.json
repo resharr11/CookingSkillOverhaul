@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Exit-9B/CustomSkills/main/docs/schema/CustomSkill.json",
+  "version": 1,
+  "showMenu": "FreeCooking.esp|85F",
+  "debugReload": "FreeCooking.esp|AA2",
+  "skydome": {
+    "model": "FreeCooking/Interface/INTCookingSkydome.nif",
+    "cameraRightPoint": 2
+  },
+  "skills": [
+    {
+      "$ref": "FreeCooking/Cooking.json"
+    }
+  ]
+}

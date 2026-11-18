@@ -1,0 +1,15 @@
+{
+  "name": "freecooking",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "commonlib-shared",
+    "simpleini",
+    {
+      "name": "spdlog",
+      "default-features": false,
+      "features": [
+        "wchar"
+      ]
+    }
+  ]
+}

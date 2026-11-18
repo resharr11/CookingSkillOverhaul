@@ -1,0 +1,7 @@
+build/
+papyrus/compiled/
+papyrus/compile_log.txt
+build_log.txt
+path_check.txt
+*.user
+.vs/
