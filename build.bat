@@ -73,6 +73,6 @@ exit /b 0
 :fail
 echo BUILD FAILED>> "%LOG%"
 echo.
-echo BUILD FAILED - see build_log.txt (Claude can read it).
+echo BUILD FAILED - see build_log.txt.
 pause
 exit /b 1
