@@ -31,8 +31,9 @@ Event OnEffectStart(Actor akTarget, Actor akCaster)
 		; our points are vanilla Survival's (30 a game hour: buff + 5 h); Survival Mode Improved's hunger rises
 		; Survival_HungerNeedRate a game hour (10 in its own esp), so the same hours are fewer points there
 		GlobalVariable rate = Game.GetFormFromFile(0x829, "ccQDRSSE001-SurvivalMode.esl") as GlobalVariable
-		if rate && rate.GetValue() > 0.0 && points < 1000.0
-			points = points / 30.0 * rate.GetValue()
+		float perHour = FC_Core.RateNow(rate)  ; its own rate, also while a dish holds it at 0 (FC_Core.HoldNeeds)
+		if perHour > 0.0 && points < 1000.0
+			points = points / 30.0 * perHour
 		endif
 		SurvivalModeImprovedApi.RestoreHungerLevel(points)
 		return

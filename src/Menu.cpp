@@ -204,7 +204,7 @@ namespace
 		};
 		static const Row ROWS[] = {
 			{ "Dishes keep you fed while they last", &FC::Options::hunger,
-				"A cooked meal or baked dish keeps you fed for as long as its effect lasts, plus about 5 game hours. A Dragon Bone meal fully sates you. Off: dishes you cook from now on ease hunger like the vanilla food they are made from. Dishes you already have keep their effect.", FC::Feature::kHunger },
+				"A cooked meal or baked dish lowers your hunger once, by as much as hunger rises during its effect's time plus about 5 game hours. While its effect lasts, your hunger does not rise. A Dragon Bone meal fully sates you. Off: dishes you cook from now on ease hunger like the vanilla food they are made from, and hunger rises as usual. Dishes you already have still ease hunger by their own amount.", FC::Feature::kHunger },
 			{ "Spicy holds off the cold", &FC::Options::spicyCold,
 				"While a Spicy meal or drink lasts, the cold can't get past a certain stage. The stage depends on the place and the Spicy level. Off: Spicy only gives its frost resistance and fire damage.", FC::Feature::kSpicyCold },
 			{ "Spicy protects from freezing water", &FC::Options::spicyWater,
@@ -310,7 +310,7 @@ namespace
 		UI::Spacing();
 		UI::SeparatorText(Tr("Thirst"));
 		if (Switch("Thirst", g_edit.thirst,
-				"Cooking Skill Overhaul adds thirst to Survival Mode. Brewed drinks keep you quenched for as long as their effect lasts, plus about 5 game hours; vanilla drinks for about 4. While Quenched, magicka regenerates 10% faster. Thirsty, Parched, Dry and Dehydrated make spells cost 10 to 40% more magicka, and from Parched on shouts recharge more slowly. While SunHelm, Last Seed, Realistic Needs and Diseases or iNeed runs its own thirst, Cooking Skill Overhaul's thirst stays off and brewed drinks quench that mod's thirst instead.")) {
+				"Cooking Skill Overhaul adds thirst to Survival Mode. A brewed drink lowers your thirst once, by as much as thirst rises during its effect's time plus about 5 game hours, and your thirst does not rise while its effect lasts. Vanilla drinks lower it by about 4 hours' worth. While Quenched, magicka regenerates 10% faster. Thirsty, Parched, Dry and Dehydrated make spells cost 10 to 40% more magicka, and from Parched on shouts recharge more slowly. While SunHelm, Last Seed, Realistic Needs and Diseases or iNeed runs its own thirst, Cooking Skill Overhaul's thirst stays off and brewed drinks quench and hold that mod's thirst instead.")) {
 			g_edit.survivalChosen |= FC::FeatureBit(FC::Feature::kThirst);
 			changed = save = true;
 		}
@@ -670,6 +670,7 @@ namespace
 			if (FC::ImportPatch(lines, bad)) {
 				g_patchEdits = FC::PlayerEdits();
 				g_patchMessage = FC::TrF("Items read: {0}. Used the next time you start the game.", lines);
+				g_patchMessage += " " + std::string(Tr("Potion choices work at once."));  // (Codex + Claude review 2026-11-22b)
 				if (bad) g_patchMessage += " " + FC::TrF("Lines skipped: {0}", bad);
 			} else {
 				g_patchMessage = FC::TrF("No file to import. Put it in {0} and name it {1}", "My Games\\Skyrim Special Edition\\SKSE", FC::ImportFileName());
@@ -1283,6 +1284,145 @@ namespace
 		if (!g_patchMessage.empty()) UI::TextColored(UI::ImVec4{ 1.0f, 0.5f, 0.4f, 1.0f }, "%s", g_patchMessage.c_str());
 	}
 
+	// ---- the Potions page (his call 2026-11-22: "a potion tab like the ingredients, so the player can choose what the
+	// mixed good potions do"). Every good potion of the game; a potion with several flavours takes its name's flavour
+	// (POTION words in the word file), else its first effect's. Works at once; saved to the edits file (POTION lines).
+	char g_potionSearch[128] = {};
+	int  g_potionFilter = 0;  // 0 several flavours, 1 seasonings, 2 not seasonings, 3 all
+
+	void __stdcall RenderPotions()
+	{
+		LoadPatchEdits();
+		if (g_patchPage != 5) {
+			g_patchMessage.clear();
+			g_patchPage = 5;
+		}
+		const auto& rows = FC::PotionRows();
+		UI::TextWrapped("%s", Tr("Potions you can put in the pot as a seasoning. A potion with one flavour gives that flavour. A potion with several flavours takes the flavour its name gives, or else the flavour of its first effect. Choose another flavour here, or Not a seasoning. The change works at once. Potions with a harmful effect are never seasonings and are not listed."));
+		if (rows.empty()) {
+			UI::TextDisabled("%s", Tr("Nothing here."));
+			return;
+		}
+		static constexpr const char* FLAVOURS[] = { "Mighty", "Brainy", "Hearty", "Sneaky", "Spicy", "Chilly", "Zesty", "Earthy" };
+		const auto choices = FC::PotionChoices();  // one copy per frame: no lock per row (Claude review 2026-11-22, L3)
+		const auto choiceOf = [&](const std::string& a_key) {
+			const auto it = choices.find(a_key);
+			return it == choices.end() ? std::string() : it->second;
+		};
+		const auto nowOf = [&](const FC::PotionRow& a_r) {
+			const auto c = choiceOf(a_r.key);
+			return c.empty() ? a_r.autoFlavour : c == "NONE" ? std::string() : c;
+		};
+		std::size_t several = 0, seasoning = 0;
+		for (const auto& r : rows) {
+			several += r.flavours.size() > 1 ? 1 : 0;
+			seasoning += nowOf(r).empty() ? 0 : 1;
+		}
+		const std::string labels[4] = { FC::TrF("Several flavours ({0})", several), FC::TrF("Seasonings ({0})", seasoning),
+			FC::TrF("Not seasonings ({0})", rows.size() - seasoning), FC::TrF("All ({0})", rows.size()) };
+		UI::TextUnformatted(Tr("Show"));
+		UI::SameLine();
+		UI::SetNextItemWidth(UI::GetFontSize() * 11.0f);
+		if (UI::BeginCombo("##potionshow", labels[g_potionFilter].c_str())) {
+			for (int i = 0; i < 4; ++i) {
+				if (UI::Selectable(labels[i].c_str(), i == g_potionFilter)) g_potionFilter = i;
+			}
+			UI::EndCombo();
+		}
+		UI::SameLine();
+		UI::SetNextItemWidth(UI::GetFontSize() * 13.0f);
+		UI::InputTextWithHint("##potionsearch", Tr("Search by name or mod"), g_potionSearch, sizeof(g_potionSearch));
+		std::string find = g_potionSearch;
+		std::ranges::transform(find, find.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+		std::map<std::string, int> sameName;  // two potions with one name in one mod: the form ID tells them apart
+		for (const auto& r : rows) ++sameName[r.name + "|" + r.plugin];
+		std::vector<const FC::PotionRow*> shown;
+		for (const auto& r : rows) {
+			const bool on = !nowOf(r).empty();
+			if ((g_potionFilter == 0 && r.flavours.size() < 2) || (g_potionFilter == 1 && !on) || (g_potionFilter == 2 && on)) continue;
+			if (!find.empty()) {
+				std::string hay = r.name + " " + r.plugin + " " + r.changedBy;
+				std::ranges::transform(hay, hay.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+				if (hay.find(find) == std::string::npos) continue;
+			}
+			shown.push_back(&r);
+		}
+		const float line = UI::GetTextLineHeightWithSpacing();
+		const float tableHeight = (std::max)(line * 8.0f, UI::GetContentRegionAvail().y - line * 3.0f);
+		if (UI::BeginTable("##potions", 4, UI::ImGuiTableFlags_RowBg | UI::ImGuiTableFlags_Borders | UI::ImGuiTableFlags_ScrollY | UI::ImGuiTableFlags_Resizable,
+				UI::ImVec2{ 0.0f, tableHeight })) {
+			UI::TableSetupScrollFreeze(0, 1);
+			UI::TableSetupColumn(Tr("Potion"), UI::ImGuiTableColumnFlags_WidthStretch, 1.6f);
+			UI::TableSetupColumn(Tr("Effects"), UI::ImGuiTableColumnFlags_WidthStretch, 2.4f);
+			UI::TableSetupColumn(Tr("In the pot"), UI::ImGuiTableColumnFlags_WidthStretch, 1.4f);
+			UI::TableSetupColumn(Tr("Mod"), UI::ImGuiTableColumnFlags_WidthStretch, 1.4f);
+			UI::TableHeadersRow();
+			auto clipper = UI::ImGuiListClipperManager::Create();
+			UI::ImGuiListClipperManager::Begin(clipper, static_cast<int>(shown.size()), -1.0f);
+			while (UI::ImGuiListClipperManager::Step(clipper)) {
+				for (int i = clipper->DisplayStart; i < clipper->DisplayEnd; ++i) {
+					const auto& r = *shown[static_cast<std::size_t>(i)];
+					UI::TableNextRow();
+					UI::TableNextColumn();
+					UI::TextUnformatted(r.name.c_str());
+					UI::TableNextColumn();
+					UI::TextUnformatted(r.effects.c_str());  // one line: the list clipper needs rows of one height (Codex review 2026-11-22)
+					Tip(r.effects.c_str());
+					UI::TableNextColumn();
+					UI::PushID(r.key.c_str());
+					const auto        current = choiceOf(r.key);  // "" automatic
+					const std::string autoText = FC::TrF("Automatic: {0}", r.autoFlavour.empty() ? std::string(Tr("Not a seasoning")) : std::string(Tr(r.autoFlavour.c_str())));
+					const std::string label = current.empty() ? autoText : current == "NONE" ? std::string(Tr("Not a seasoning")) : std::string(Tr(current.c_str()));
+					UI::SetNextItemWidth(-FLT_MIN);
+					if (UI::BeginCombo("##flavour", label.c_str(), UI::ImGuiComboFlags_HeightLarge)) {
+						std::string pick = "-";  // "-" = nothing picked
+						if (UI::Selectable(autoText.c_str(), current.empty()) && !current.empty()) pick.clear();
+						for (const char* f : FLAVOURS) {
+							if (UI::Selectable(Tr(f), current == f) && current != f) pick = f;
+						}
+						if (UI::Selectable(Tr("Not a seasoning"), current == "NONE") && current != "NONE") pick = "NONE";
+						UI::EndCombo();
+						if (pick != "-") {
+							FC::SetPotionChoice(r.key, pick);
+							if (pick.empty()) {
+								// over a patch file's choice, Automatic is kept as AUTO, so the patch file's choice doesn't
+								// come back on the next start (as on the Needs mods page)
+								if (FC::PatchFileEdits().potions.contains(r.key)) {
+									g_patchEdits.potions[r.key] = "AUTO";
+								} else {
+									g_patchEdits.potions.erase(r.key);
+								}
+							} else {
+								g_patchEdits.potions[r.key] = pick;
+							}
+							g_patchMessage = FC::SavePlayerEdits(g_patchEdits) ? std::string() : std::string(Tr("Couldn't save the change (the file can't be written)."));
+						}
+					}
+					const char* why = r.autoWhy == "one flavour" ? Tr("Automatic: the only flavour among its effects.") :
+									  r.autoWhy == "name"        ? Tr("Automatic: its name has a potion word for this flavour (word file).") :
+									  r.autoWhy == "first effect" ? Tr("Automatic: it has several flavours, so its first effect with a flavour decides.") :
+									  r.autoWhy == "theme"       ? Tr("Automatic: a potion with its own theme.") :
+																   Tr("Automatic: none of its effects has a flavour.");
+					Tip(why);
+					UI::PopID();
+					UI::TableNextColumn();
+					std::string mod = sameName[r.name + "|" + r.plugin] > 1 ? std::format("{} | {}", r.plugin, r.key.substr(r.key.rfind('|') + 1)) : r.plugin;
+					if (!r.changedBy.empty()) mod = FC::TrF("{0} (changed by {1})", mod, r.changedBy);
+					// the patch-file mark goes first: at the end the narrow column cut it off behind "(changed by ...)" (2026-11-22)
+					if (r.byPatchFile && !g_patchEdits.potions.contains(r.key)) mod = FC::TrF("Patch file: {0}", mod);  // only while it decides
+					UI::TextUnformatted(mod.c_str());
+					Tip(mod.c_str());
+				}
+			}
+			UI::ImGuiListClipperManager::End(clipper);
+			UI::ImGuiListClipperManager::Destroy(clipper);
+			UI::EndTable();
+		}
+		if (shown.empty()) UI::TextDisabled("%s", Tr("Nothing here."));
+		if (!g_patchMessage.empty()) UI::TextColored(UI::ImVec4{ 1.0f, 0.5f, 0.4f, 1.0f }, "%s", g_patchMessage.c_str());
+	}
+
 	// ---- the Needs mods page (his call 2026-11-15): only when SunHelm, Last Seed, iNeed or Realistic Needs is loaded.
 	// Those mods know foods by their own lists and ask the player about unknown ones. Cooking Skill Overhaul answers for him: while
 	// it feeds that need itself (Survival Mode page switches), our dishes are "not food" there; with the switch off they
@@ -1421,10 +1561,11 @@ void FC::RegisterMenu()
 	SKSEMenuFramework::AddSectionItem(Tr("Patcher"), RenderPatcher);
 	SKSEMenuFramework::AddSectionItem(Tr("Patched foods"), RenderPatchedFoods);
 	SKSEMenuFramework::AddSectionItem(Tr("Misc recipes"), RenderMiscRecipes);
+	SKSEMenuFramework::AddSectionItem(Tr("Potions"), RenderPotions);
 	const bool needs = FC::NeedsPageShown();  // only with SunHelm, Last Seed, iNeed or Realistic Needs (his call 2026-11-15)
 	if (needs) {
 		SKSEMenuFramework::AddSectionItem(Tr("Needs mods"), RenderNeedsMods);
 	}
 	SKSEMenuFramework::AddEvent(OnFrameworkEvent, 0.0f);  // kept for the game's lifetime
-	logger::info("Settings pages added to SKSE Menu Framework (Cooking Skill Overhaul > Cooking, Survival Mode, Patcher, Patched foods, Misc recipes{})", needs ? ", Needs mods" : "");
+	logger::info("Settings pages added to SKSE Menu Framework (Cooking Skill Overhaul > Cooking, Survival Mode, Patcher, Patched foods, Misc recipes, Potions{})", needs ? ", Needs mods" : "");
 }

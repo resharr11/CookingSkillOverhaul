@@ -1162,6 +1162,14 @@
 		a_vm->RegisterFunction("NeedOwner", "FC_Menu", PapyrusNeedOwner);  // Cooking/OtherMods.inl
 		a_vm->RegisterFunction("SurvivalInstalled", "FC_Menu", PapyrusSurvivalInstalled);
 		a_vm->RegisterFunction("TakeOtherThirst", "FC_Menu", PapyrusTakeOtherThirst);  // Cooking/Thirst.inl
+		a_vm->RegisterFunction("SetRate", "FC_Menu", PapyrusSetRate);  // Cooking/Thirst.inl: the hold (frame-synced)
+		a_vm->RegisterFunction("NoteHeld", "FC_Menu", PapyrusNoteHeld);  // Cooking/Thirst.inl: the hold's skips (frame-synced)
+		a_vm->RegisterFunction("NoteReleased", "FC_Menu", PapyrusNoteReleased);
+		a_vm->RegisterFunction("SkipShare", "FC_Menu", PapyrusSkipShare);
+		a_vm->RegisterFunction("SkipDone", "FC_Menu", PapyrusSkipDone);
+		a_vm->RegisterFunction("SkipPending", "FC_Menu", PapyrusSkipPending);
+		a_vm->RegisterFunction("SkipEndDay", "FC_Menu", PapyrusSkipEndDay);
+		a_vm->RegisterFunction("HoldSession", "FC_Menu", PapyrusHoldSession);
 		a_vm->RegisterFunction("FeatureOn", "FC_Menu", PapyrusFeatureOn);
 		a_vm->RegisterFunction("SharedTableFollowers", "FC_Menu", PapyrusSharedTableFollowers);
 		a_vm->RegisterFunction("ShareIdle", "FC_Menu", PapyrusShareIdle);
@@ -1181,6 +1189,7 @@
 		a_vm->RegisterFunction("DishSaveKey", "FC_Menu", PapyrusDishSaveKey, true);
 		// (frame-synced: it reads the live form's plugin; Codex review 2026-11-15, L3)
 		a_vm->RegisterFunction("ItemKey", "FC_Menu", PapyrusItemKey);
+		a_vm->RegisterFunction("PotionFlavourOf", "FC_Menu", PapyrusPotionFlavour);  // (frame-synced: it reads the live form's effects)
 		a_vm->RegisterFunction("DishName", "FC_Menu", PapyrusDishName, true);
 		return true;
 	}

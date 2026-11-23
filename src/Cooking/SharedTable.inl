@@ -1,7 +1,7 @@
 	// ---------------------------------------------------------------------------------------------------------------
 	// Shared Table (perk): followers who are following you (not told to wait) near you share each meal or drink you
 	// eat, at the same level and duration. Each gets the effect best for them, by their best combat skill: weapons and
-	// archery Mighty, magic Brainy, Heavy Armor and Block Hearty (never Sneaky); elemental dishes go to them as they are
+	// archery Mighty, magic Brainy, armor, Block and Alteration Hearty (never Sneaky); elemental dishes go to them as they are
 	// (FC_Core.ShareMeal does the sharing). The list is taken here on the main thread when the player eats (EatWatcher),
 	// and the script reads it with FC_Menu.SharedTableFollowers. The perk parts of the effects reach followers through
 	// FC_SharedTableNPC (0xA5B), which SPID gives every NPC (FreeCooking_DISTR.ini).
@@ -28,18 +28,23 @@
 		return FC::GetOptions().shareRangeMetres * UNITS_PER_METRE;
 	}
 
-	// 0 Mighty (weapons, archery), 1 Brainy (magic), 2 Hearty (Heavy Armor, Block); ties go in that order
+	// 0 Mighty (weapons, archery), 1 Brainy (magic), 2 Hearty (Heavy and Light Armor, Block, Alteration); ties go to the
+	// follower's attack skill (the higher of weapons and magic; weapons on a tie), then Hearty, then the other (his rule
+	// 2026-11-22: "attack skill, hearty then the other skill"; "the attack skill depends on the follower")
+	// (his choices 2026-11-22: Light Armor and Alteration, the armor school, Hearty, as in the potion rule)
 	std::int32_t SharedTableCategory(RE::Actor* a_actor)
 	{
 		const auto av = [a_actor](RE::ActorValue a_value) { return a_actor->GetActorValue(a_value); };
 		const float weapons = std::max({ av(RE::ActorValue::kOneHanded), av(RE::ActorValue::kTwoHanded), av(RE::ActorValue::kArchery) });
-		const float magic = std::max({ av(RE::ActorValue::kDestruction), av(RE::ActorValue::kConjuration), av(RE::ActorValue::kAlteration),
+		const float magic = std::max({ av(RE::ActorValue::kDestruction), av(RE::ActorValue::kConjuration),
 			av(RE::ActorValue::kIllusion), av(RE::ActorValue::kRestoration) });
-		const float armor = std::max(av(RE::ActorValue::kHeavyArmor), av(RE::ActorValue::kBlock));
-		if (weapons >= magic && weapons >= armor) {
-			return 0;
+		const float armor = std::max({ av(RE::ActorValue::kHeavyArmor), av(RE::ActorValue::kLightArmor), av(RE::ActorValue::kBlock), av(RE::ActorValue::kAlteration) });
+		const bool  weaponsAttack = weapons >= magic;
+		const float attack = weaponsAttack ? weapons : magic;  // never below the other attack skill
+		if (attack >= armor) {
+			return weaponsAttack ? 0 : 1;
 		}
-		return magic >= armor ? 1 : 2;
+		return 2;
 	}
 
 	// main thread: who would share a meal eaten now (a_food: the food being eaten)

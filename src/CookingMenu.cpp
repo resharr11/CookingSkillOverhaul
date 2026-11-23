@@ -126,6 +126,7 @@ void CookingMenu::Register()
 		return true;
 	});
 	CampingSetup();  // plugin lookups kept from now on (Cooking/Camping.inl)
+	HoldRememberSurvivalRate();  // the hold gives Survival's constant rate back before every load (Cooking/Thirst.inl)
 	ChefHatSetup();  // the caravans sell the enchanted Chef's Hat (Cooking/ChefHat.inl)
 	WatchBrews();
 	RegisterConsoleCommand();
@@ -149,6 +150,7 @@ void CookingMenu::Register()
 	StartHolyWatch();
 	StartSurvivalWatch();  // FC_SurvivalOn mirrors Survival Mode (Cooking/Survival.inl)
 	StartSleepWatch();     // camp rest: outdoor sleeps (Cooking/Survival.inl)
+	StartSkipWatch();      // the hold lets go for sleeps, waits and travel (Cooking/Thirst.inl)
 	CardHook<RE::InventoryMenu>::Install();
 	CardHook<RE::BarterMenu>::Install();
 	CardHook<RE::ContainerMenu>::Install();
@@ -162,6 +164,7 @@ void CookingMenu::Register()
 		logger::error("Patcher stopped: {} (modded foods may be only partly added)", e.what());
 	}
 	BuildMisc();  // the Misc section: the pot's and oven's recipes our rules don't cook (Cooking/Misc.inl)
+	BuildPotionRows();  // the Potions page: every good potion and what it does in the pot (Cooking/Patcher.inl)
 	BuildNeedsRows();  // SunHelm, Last Seed, iNeed, Realistic Needs: what our dishes are in their food lists (Cooking/Needs.inl)
 }
 
@@ -487,6 +490,7 @@ void CookingMenu::GameLoading()
 	HolyReset();
 	SurvivalReset();  // stepped drains read afresh, camp rest cleared (Cooking/Survival.inl)
 	DropGameTimers();  // the previous game's delayed jobs dropped (Core/Timers.inl)
+	HoldResetForLoad();  // Survival's constant hunger rate back to its own value (Cooking/Thirst.inl)
 }
 
 // The pot's script only hears the screen's Cook / Season / Taste requests after it registered for them, which used to
@@ -520,6 +524,7 @@ void CookingMenu::GameLoaded(bool a_newGame)
 	ReconcileDishPool();  // this game's dishes filled in, other games' blank again (Cooking/DishPool.inl)
 	if (a_newGame) {
 		DropGameTimers();  // a new game has no kPreLoadGame before it
+		HoldResetForLoad();  // nor does it reset the hold (Cooking/Thirst.inl)
 	}
 	// another save: what this session learned by eating belongs to the one we left
 	{
@@ -1127,7 +1132,7 @@ void CookingMenu::Populate()
 	});
 	for (const auto& entry : carried) {
 		_entries.push_back({ Kind::kIngredient, nullptr, 0, entry.second });
-		// a Resist Poison potion also neutralizes poison: list it under Enablers too, without its flavour prefix
+		// an Earthy potion also neutralizes poison (his OK 2026-11-22: every Earthy potion): list it under Enablers too, without its flavour prefix
 		if (const auto ing = IngOf(entry.second); ing.potion && ing.garlic) {
 			_entries.push_back({ Kind::kIngredient, nullptr, 0, entry.second, true });
 		}
@@ -1507,7 +1512,7 @@ void CookingMenu::ShowPotCard(const Pot& a_pot, const std::string& a_lead)
 			}
 		}
 		if (r.blocked) {
-			// say exactly what is missing, per need: "Nightshade needs Garlic or a Resist Poison potion."
+			// say exactly what is missing, per need: "Nightshade needs Garlic or an Earthy potion."
 			for (const char* need : { "alc", "garlic", "ring" }) {
 				std::vector<std::string> names;
 				for (const auto& [index, q] : r.blockedBy) {
@@ -1522,7 +1527,7 @@ void CookingMenu::ShowPotCard(const Pot& a_pot, const std::string& a_lead)
 				const bool many = names.size() > 1;
 				const std::string n(need);
 				lines.push_back(FC::TrF(n == "alc" ? (many ? "{0} need an alcoholic drink." : "{0} needs an alcoholic drink.") :
-				                        n == "garlic" ? (many ? "{0} need Garlic or a Resist Poison potion." : "{0} needs Garlic or a Resist Poison potion.") :
+				                        n == "garlic" ? (many ? "{0} need Garlic or an Earthy potion." : "{0} needs Garlic or an Earthy potion.") :
 				                                        (many ? "{0} need the Ring of Namira worn." : "{0} needs the Ring of Namira worn."),
 					Join(names)));
 			}
@@ -1843,7 +1848,7 @@ void CookingMenu::ShowEntry(std::int32_t a_index)
 			const auto ing = IngOf(entry.item);
 			const std::string name = entry.item->GetName();
 			if (ing.potion) {
-				info = FC::TrF(ing.flavour == "Earthy" ? "{0} adds an Earthy flavour, 1 star. Only one potion counts per pot." : "{0} adds a {1} flavour, 1 star. Only one potion counts per pot.",
+				info = FC::TrF(ing.flavour == "Earthy" ? "{0} adds an Earthy flavour, 1 star." : "{0} adds a {1} flavour, 1 star.",
 					name, FC::Tr(ing.flavour.c_str()));
 				if (ing.garlic) {
 					info += std::string(" ") + FC::Tr("It also neutralizes poisonous plants.");
@@ -1885,7 +1890,7 @@ void CookingMenu::ShowEntry(std::int32_t a_index)
 				if (ing.need == "alc" && !simmer) {
 					info += std::string(" ") + FC::Tr("Needs an alcoholic drink in the pot.");
 				} else if (ing.need == "garlic" && !simmer) {
-					info += std::string(" ") + FC::Tr("Needs Garlic or a Resist Poison potion in the pot.");
+					info += std::string(" ") + FC::Tr("Needs Garlic or an Earthy potion in the pot.");
 				} else if (ing.need == "ring") {
 					info += std::string(" ") + FC::Tr("A forbidden ingredient: only Namira's followers cook with it.");
 				}
@@ -2503,6 +2508,31 @@ void FC::SetMiscHidden(const std::string& a_key, bool a_hidden)
 }
 const FCPatch::EditSet& FC::PatchFileEdits() { return g_patchFileEdits; }
 
+// ---- the Potions page (Menu.cpp; Cooking/Rules.inl JudgePotion, Cooking/Patcher.inl BuildPotionRows)
+const std::vector<FC::PotionRow>& FC::PotionRows() { return g_potionRows; }
+std::unordered_map<std::string, std::string> FC::PotionChoices()
+{
+	CookLock lock(g_cookLock);
+	return g_potionChoice;
+}
+std::string FC::PotionChoice(const std::string& a_key)
+{
+	CookLock lock(g_cookLock);
+	const auto it = g_potionChoice.find(a_key);
+	return it == g_potionChoice.end() ? std::string() : it->second;
+}
+// the page's choice takes effect at once: the next time the cooking screen judges a potion
+void FC::SetPotionChoice(const std::string& a_key, const std::string& a_value)
+{
+	CookLock lock(g_cookLock);
+	if (a_value.empty()) {
+		g_potionChoice.erase(a_key);
+	} else {
+		g_potionChoice[a_key] = a_value;
+	}
+	g_flavourCache.clear();
+}
+
 // ---- the Needs mods page (Menu.cpp; Cooking/Needs.inl)
 bool FC::NeedsPageShown() { return NeedsModLoaded(); }
 const std::vector<FC::NeedsRow>& FC::NeedsRows() { return g_needsRows; }
@@ -2636,6 +2666,10 @@ std::string FC::ExportPatch()
 	// what our recipes are in the needs mods, as this game has them
 	out.needs = g_patchFileEdits.needs;
 	for (const auto& [key, choice] : player.needs) out.needs[key] = choice;
+	// potions as this game has them: patch files' choices, the player's on top, an explicit AUTO kept (it undoes a patch
+	// file's choice on the importing side too; Claude and Codex review 2026-11-22)
+	out.potions = g_patchFileEdits.potions;
+	for (const auto& [key, value] : player.potions) out.potions[key] = value;
 	const char* header =
 		"# Cooking Skill Overhaul patch file, exported from the patcher page: the modded foods and ingredients as they are in this game\n"
 		"# (items the patcher didn't recognise are left out, so they stay automatic).\n"
@@ -2647,19 +2681,29 @@ std::string FC::ExportPatch()
 bool FC::ImportPatch(std::size_t& a_lines, std::size_t& a_bad)
 {
 	a_lines = a_bad = 0;
-	std::scoped_lock lock(g_editsLock);
-	std::error_code  ec;
-	const auto       path = MyGamesFile(IMPORT_FILE);
-	if (path.empty() || !std::filesystem::exists(path, ec)) {
-		return false;
+	std::map<std::string, std::string> potions;  // the potion choices in force after the import
+	bool                               ok = false;
+	{
+		std::scoped_lock lock(g_editsLock);
+		std::error_code  ec;
+		const auto       path = MyGamesFile(IMPORT_FILE);
+		if (path.empty() || !std::filesystem::exists(path, ec)) {
+			return false;
+		}
+		FCPatch::EditSet imported;
+		a_lines = imported.Read(ReadWordFile(path), &a_bad);
+		auto edits = LoadPlayerEdits();
+		edits.Replace(imported);
+		std::vector<std::string> keep;
+		for (const auto& [key, e] : g_patchFileEdits.ingredients) keep.push_back(key);
+		for (const auto& [key, e] : g_patchFileEdits.dishes) keep.push_back(key);
+		edits.Clean(&keep);
+		ok = WriteMyGamesFile(EDITS_FILE, edits.Write(EDITS_HEADER));
+		potions = g_patchFileEdits.potions;
+		for (const auto& [key, value] : edits.potions) potions[key] = value;
 	}
-	FCPatch::EditSet imported;
-	a_lines = imported.Read(ReadWordFile(path), &a_bad);
-	auto edits = LoadPlayerEdits();
-	edits.Replace(imported);
-	std::vector<std::string> keep;
-	for (const auto& [key, e] : g_patchFileEdits.ingredients) keep.push_back(key);
-	for (const auto& [key, e] : g_patchFileEdits.dishes) keep.push_back(key);
-	edits.Clean(&keep);
-	return WriteMyGamesFile(EDITS_FILE, edits.Write(EDITS_HEADER));
+	if (ok) {
+		SetPotionChoices(potions);  // potions work at once, like the page (g_editsLock released first: one lock order)
+	}
+	return ok;
 }

@@ -320,6 +320,7 @@
 	void ThirstSleepStart();
 	void ThirstSleepStop();
 	void ThirstTick();
+	void HoldTick();  // the hold: hunger and thirst don't rise while a dish's effect runs
 	void LastSeedNightSettled();  // below
 	void INeedNightSettled(float a_rest, float a_stomach);  // below
 	void SunHelmNightSettled();                             // below
@@ -1174,6 +1175,7 @@
 		RepeatAlways(1000, []() {
 			if (!g_loadingSave) {
 				SurvivalTick();
+				HoldTick();  // Cooking/Thirst.inl: the hold, before thirst reads it
 				ThirstTick();
 				AfflictionsTick();
 			}

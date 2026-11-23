@@ -19,6 +19,13 @@ SKSE_PLUGIN_LOAD(const SKSE::LoadInterface* a_skse)
 	init.trampolineSize = 64;
 	SKSE::Init(a_skse, init);
 	logger::info("FreeCooking v{}", Version::NAME);
+	// 1.7.99 or newer only (his decision 2026-11-18: no 1.6 support). On 1.6 the plugin's game structures don't match
+	// (the script VM moved), so it would crash: refusing to load makes SKSE show its "A DLL plugin has failed to load
+	// correctly" box, naming FreeCooking.dll "reported as incompatible during load", instead.
+	if (const auto game = a_skse->RuntimeVersion(); game < SKSE::RUNTIME_SSE_1_7_99) {
+		logger::critical("Skyrim {} is too old: Cooking Skill Overhaul needs 1.7.99 or newer. Not loaded.", game.string());
+		return false;
+	}
 	CookingMenu::RegisterPapyrusFunctions();
 	CookingMenu::RegisterSerialization();
 

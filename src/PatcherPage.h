@@ -4,6 +4,7 @@
 #include "Patcher/Edits.h"
 
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -63,6 +64,26 @@ namespace FC
 		bool        drink = false;
 		bool        byPatchFile = false;
 	};
+	// one row of the Potions page (2026-11-22, his call): a good potion (no harmful effect) and what it does in the pot.
+	// A potion with several flavours takes the one its name gives (POTION words), else its first effect's; the player
+	// can choose another flavour or "not a seasoning". Works at once; saved to the edits file (POTION lines).
+	struct PotionRow
+	{
+		std::string              key;       // "<plugin>|<local ID>" (FCPatch::ItemKey)
+		std::string              name;      // as the game shows it
+		std::string              plugin;    // the file that adds it
+		std::string              changedBy; // the last plugin that changes it, when that isn't the one that adds it ("" otherwise)
+		std::string              effects;   // its effects as the game names them, each with its flavour ("Fortify Block (Hearty)")
+		std::vector<std::string> flavours;  // its own flavours, in effect order
+		std::string              autoFlavour;  // what it does on its own ("" = not a seasoning)
+		std::string              autoWhy;      // one flavour / name / first effect / no flavour / theme
+		bool                     byPatchFile = false;
+	};
+	const std::vector<PotionRow>& PotionRows();
+	std::string                   PotionChoice(const std::string& a_key);  // "" automatic, "NONE" not a seasoning, else a flavour
+	std::unordered_map<std::string, std::string> PotionChoices();          // all of them at once (the page copies them once per frame)
+	void                          SetPotionChoice(const std::string& a_key, const std::string& a_value);  // works at once
+
 	bool                         NeedsPageShown();
 	const std::vector<NeedsRow>& NeedsRows();
 	int                          NeedsChoice(const std::string& a_key);  // -1 automatic, 0 not food, 1 light, 2 medium, 3 heavy, 4 drink

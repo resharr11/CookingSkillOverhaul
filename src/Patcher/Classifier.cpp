@@ -231,6 +231,7 @@ namespace FCPatch
 			else if (kind == "COMBINE" && cols.size() >= 2) add(_combine, "", cols[1]);
 			else if (kind == "NAMIRA_SAFE_END" && cols.size() >= 2) add(_safeEnd, "", cols[1]);
 			else if (kind == "DRAGON_BODY" && cols.size() >= 2) add(_dragonBody, "", cols[1]);
+			else if (kind == "POTION" && cols.size() >= 3) add(_potion, cols[1], cols[2]);  // POTION <flavour> <words>
 			else if (kind == "KEYWORD" && cols.size() >= 3) _keywords.emplace_back(Lower(cols[1]), cols[2]);
 			else if (kind == "CATEGORY" && cols.size() >= 3) {
 				// CATEGORY <id> <groups> ; <words>
@@ -312,6 +313,22 @@ namespace FCPatch
 			}
 		}
 		return best;
+	}
+
+	std::string Words::PotionWord(const std::string& a_name, const std::vector<std::string>& a_allowed) const
+	{
+		std::vector<Entry> list;
+		for (const auto& e : _potion) {
+			for (const auto& f : a_allowed) {
+				if (Lower(e.target) == Lower(f)) {
+					list.push_back(e);
+					list.back().target = f;  // the flavour as the caller writes it
+					break;
+				}
+			}
+		}
+		const auto* best = list.empty() ? nullptr : Best(list, a_name, false);
+		return best ? best->target : std::string();
 	}
 
 	bool Words::Any(const std::vector<Entry>& a_list, const std::string& a_text, bool a_isId) const

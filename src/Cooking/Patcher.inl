@@ -64,7 +64,8 @@
 		"# ING and DISH lines are used the next time the game starts. Lines: ING <plugin>|<form ID> <group or OUT> <stars>;\n"
 		"# DISH <plugin>|<form ID> <AUTO/NEW/NOT/MISC> <tier> <slots: item:<plugin>|<form ID> or group:<group>, split by ;>. AUTO = the patcher decides.\n"
 		"# MISC <plugin>|<form ID of the item the recipe makes> <SHOW/HIDE>: whether the cooking screen's Misc section lists it (Misc recipes page).\n"
-		"# NEEDS <plugin>|<form ID of the dish a recipe makes> <NOTFOOD/LIGHT/MEDIUM/HEAVY/DRINK>: what SunHelm, Last Seed, iNeed and Realistic Needs count our cooked copies as (Needs mods page).\n";
+		"# NEEDS <plugin>|<form ID of the dish a recipe makes> <NOTFOOD/LIGHT/MEDIUM/HEAVY/DRINK>: what SunHelm, Last Seed, iNeed and Realistic Needs count our cooked copies as (Needs mods page).\n"
+		"# POTION <plugin>|<form ID> <AUTO/NONE/Mighty/Brainy/Hearty/Sneaky/Spicy/Chilly/Zesty/Earthy>: what a potion does as a pot seasoning; NONE = not a seasoning (Potions page).\n";
 
 	std::filesystem::path MyGamesFile(const char* a_name)
 	{
@@ -301,6 +302,7 @@
 			return;
 		}
 		const bool tweaks = TweaksEditorIDFunction() != nullptr;
+		g_potionWords = words;  // the POTION words, for potions with several flavours (Cooking/Rules.inl JudgePotion)
 
 		// ---- hand edits: food mods' patch files (A-Z), then the player's own edits on top
 		FCPatch::EditSet patchFiles, playerEdits;
@@ -322,6 +324,7 @@
 		g_patchFileEdits = patchFiles;
 		FCPatch::EditSet edits = patchFiles;
 		edits.Replace(playerEdits);  // the player's entry wins whole: "Automatic" means the patcher's own result
+		SetPotionChoices(edits.potions);
 		g_patchGroups.clear();
 		for (auto& r : GROUP_RULES) {
 			g_patchGroups.emplace_back(r.group);
@@ -1423,9 +1426,72 @@
 	bool         PapyrusHasRuleText(RE::StaticFunctionTag*, std::string a_key) { return g_str.contains(Lower(a_key)); }
 	// (by form ID, resolved here: forms don't cross the boundary; Codex review 2026-11-16, L3)
 	std::string  PapyrusItemKey(RE::StaticFunctionTag*, std::int32_t a_formId) { return PlainKeyOf(RE::TESForm::LookupByID(static_cast<RE::FormID>(a_formId))); }
+	// a potion's flavour as a pot seasoning ("" = not one), by the one rule the cooking screen also uses (Rules.inl
+	// JudgePotion): the scripts' own copy of the rule fell behind it (Claude review 2026-11-22, M1)
+	std::string  PapyrusPotionFlavour(RE::StaticFunctionTag*, std::int32_t a_formId) { return PotionFlavour(RE::TESForm::LookupByID(static_cast<RE::FormID>(a_formId))); }
 	std::string  PapyrusDishName(RE::StaticFunctionTag*, std::int32_t a_dish, std::string a_flavour) { return DishName(a_dish, a_flavour, true); }
 	std::string  PapyrusDishSaveKey(RE::StaticFunctionTag*, std::int32_t a_dish)
 	{
 		const auto it = g_dishSaveKeys.find(a_dish);
 		return it != g_dishSaveKeys.end() ? it->second : std::to_string(a_dish);
+	}
+
+	// ---- the Potions page (2026-11-22, his call): every good potion the game has (vanilla and mods), what it does in the
+	// pot on its own, and the player's choice. Built once at game start, after the patcher, read-only after that.
+	std::vector<FC::PotionRow> g_potionRows;
+
+	void BuildPotionRows()
+	{
+		g_potionRows.clear();
+		auto data = RE::TESDataHandler::GetSingleton();
+		if (!data) {
+			return;
+		}
+		CookLock lock(g_cookLock);
+		std::size_t mixed = 0;
+		for (auto alch : data->GetFormArray<RE::AlchemyItem>()) {
+			if (!alch || alch->IsFood() || alch->IsPoison() || alch->IsDynamicForm()) {
+				continue;
+			}
+			const std::string name = alch->GetFullName();
+			if (name.empty()) {
+				continue;  // a hidden item: nothing to show
+			}
+			const auto v = JudgePotion(alch, false);
+			if (v.harmful) {
+				continue;  // never a seasoning: not listed
+			}
+			FC::PotionRow row;
+			row.key = PotionKey(alch);
+			if (row.key.empty()) {
+				continue;
+			}
+			row.name = name;
+			row.plugin = FileOf(alch);
+			if (auto last = alch->GetFile(-1); last && last != alch->GetFile(0)) {
+				row.changedBy = std::string(last->GetFilename());  // the plugin whose version the game uses (Apothecary changes vanilla potions)
+			}
+			row.flavours = v.flavours;
+			row.autoFlavour = v.flavour;
+			row.autoWhy = v.why;
+			// a patch file's real choice (an AUTO line chooses nothing); the page also hides the mark while the player's own
+			// edits file has the potion (Claude review 2026-11-22b, L1)
+			if (const auto it = g_patchFileEdits.potions.find(row.key); it != g_patchFileEdits.potions.end() && it->second != "AUTO") {
+				row.byPatchFile = true;
+			}
+			for (auto effect : alch->effects) {
+				auto base = effect ? effect->baseEffect : nullptr;
+				if (!base) continue;
+				std::string fx = base->GetFullName();
+				if (fx.empty()) continue;
+				if (const auto f = EffectFlavour(base); !f.empty()) fx += " (" + std::string(FC::Tr(f.c_str())) + ")";
+				row.effects += (row.effects.empty() ? "" : ", ") + fx;
+			}
+			mixed += row.flavours.size() > 1 ? 1 : 0;
+			g_potionRows.push_back(std::move(row));
+		}
+		std::ranges::sort(g_potionRows, [](const FC::PotionRow& a_l, const FC::PotionRow& a_r) {
+			return a_l.name != a_r.name ? a_l.name < a_r.name : a_l.key < a_r.key;
+		});
+		logger::info("Potions page: {} good potions, {} with several flavours, {} set by hand or by a patch file", g_potionRows.size(), mixed, g_potionChoice.size());
 	}

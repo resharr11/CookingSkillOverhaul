@@ -14,8 +14,8 @@ float Function Points(float hours, int rateId) global
 	endif
 	float rate = 1.25
 	GlobalVariable g = Game.GetFormFromFile(rateId, "LastSeed.esp") as GlobalVariable
-	if g && g.GetValue() > 0.0
-		rate = g.GetValue()
+	if FC_Core.RateNow(g) > 0.0
+		rate = FC_Core.RateNow(g)  ; its own rate, also while a dish holds it at 0 (FC_Core.HoldNeeds)
 	endif
 	return hours * 2.0 * rate
 EndFunction
@@ -31,6 +31,19 @@ Function LowerThirst(float hours) global
 	LastSeedAPI api = Api()
 	if api && api.Thirst
 		api.Thirst.DecreaseAttribute(Points(hours, 0x0029D3))  ; _Seed_ThirstRate
+	endif
+EndFunction
+
+; after a skip: points in Last Seed's own scale (FC_Core.SkipGiveBack; need 0 hunger, 1 thirst)
+Function GiveBack(int need, float points) global
+	LastSeedAPI api = Api()
+	if !api
+		return
+	endif
+	if need == 0 && api.Hunger
+		api.Hunger.DecreaseAttribute(points)
+	elseif need == 1 && api.Thirst
+		api.Thirst.DecreaseAttribute(points)
 	endif
 EndFunction
 

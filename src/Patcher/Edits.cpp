@@ -58,6 +58,17 @@ namespace FCPatch
 		}
 	}
 
+	std::string PotionValue(std::string_view a_text)
+	{
+		const auto u = Upper(Trim(a_text));
+		if (u == "AUTO" || u == "NONE") return u;
+		static constexpr const char* FLAVOURS[] = { "Mighty", "Brainy", "Hearty", "Sneaky", "Spicy", "Chilly", "Zesty", "Earthy" };
+		for (const char* f : FLAVOURS) {
+			if (u == Upper(f)) return f;
+		}
+		return {};
+	}
+
 	std::string ItemKey(std::string_view a_plugin, std::uint32_t a_localId)
 	{
 		std::string plugin(a_plugin);
@@ -101,11 +112,18 @@ namespace FCPatch
 			const auto cols = SplitOn(raw, '\t');
 			const auto kind = Upper(cols[0]);
 			const auto key = cols.size() > 1 ? NormalizeKey(cols[1]) : std::string();
-			if (key.empty() || (kind != "ING" && kind != "DISH" && kind != "MISC" && kind != "NEEDS")) {
+			if (key.empty() || (kind != "ING" && kind != "DISH" && kind != "MISC" && kind != "NEEDS" && kind != "POTION")) {
 				++bad;
 				continue;
 			}
-			if (kind == "NEEDS") {
+			if (kind == "POTION") {
+				const auto v = PotionValue(cols.size() > 2 ? cols[2] : std::string());
+				if (v.empty()) {
+					++bad;
+					continue;
+				}
+				potions[key] = v;
+			} else if (kind == "NEEDS") {
 				const auto c = cols.size() > 2 ? Upper(cols[2]) : std::string();
 				// AUTO: Automatic chosen on purpose, so a patch file's choice for the recipe doesn't come back on the next
 				// start (Codex review 2026-11-15, L2)
@@ -178,6 +196,9 @@ namespace FCPatch
 		for (const auto& [key, choice] : needs) {
 			out += std::format("NEEDS\t{}\t{}\n", key, choice);
 		}
+		for (const auto& [key, value] : potions) {
+			out += std::format("POTION\t{}\t{}\n", key, value);
+		}
 		return out;
 	}
 
@@ -200,6 +221,9 @@ namespace FCPatch
 		}
 		for (const auto& [key, hidden] : a_top.misc) misc[key] = hidden;
 		for (const auto& [key, choice] : a_top.needs) needs[key] = choice;
+		for (const auto& [key, value] : a_top.potions) {
+			if (value != "AUTO") potions[key] = value;  // a part left automatic keeps the lower file's value
+		}
 	}
 
 	void EditSet::Replace(const EditSet& a_top)
@@ -208,6 +232,7 @@ namespace FCPatch
 		for (const auto& [key, e] : a_top.dishes) dishes[key] = e;
 		for (const auto& [key, hidden] : a_top.misc) misc[key] = hidden;
 		for (const auto& [key, choice] : a_top.needs) needs[key] = choice;
+		for (const auto& [key, value] : a_top.potions) potions[key] = value;
 	}
 
 	void EditSet::Clean(const std::vector<std::string>* a_keep)

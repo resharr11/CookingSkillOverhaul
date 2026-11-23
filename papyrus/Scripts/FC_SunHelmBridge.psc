@@ -10,8 +10,8 @@ EndFunction
 
 float Function Rate(int globalId, float fallback) global
 	GlobalVariable rate = Game.GetFormFromFile(globalId, "SunHelmSurvival.esp") as GlobalVariable
-	if rate && rate.GetValue() > 0.0
-		return rate.GetValue()
+	if FC_Core.RateNow(rate) > 0.0
+		return FC_Core.RateNow(rate)  ; its own rate, also while a dish holds it at 0 (FC_Core.HoldNeeds)
 	endif
 	return fallback
 EndFunction
@@ -41,16 +41,39 @@ Function LowerThirst(float hours) global
 	m.Thirst.DecreaseThirstLevel(points)
 EndFunction
 
+; after a skip: points in SunHelm's own scale (FC_Core.SkipGiveBack; need 0 hunger, 1 thirst). SunHelm's Decrease...Level
+; adds 10% (rank 1) or 15% (rank 2) of its Connoisseur (hunger) or Hydrated (thirst) perk, meant for food and drink; a
+; give-back is the rise the dish held, so that bonus is taken out first (as SlumberFactor does for rest)
+Function GiveBack(int need, float points) global
+	_SunHelmMain m = Main()
+	if !m
+		return
+	endif
+	if need == 0 && m.Hunger
+		m.Hunger.DecreaseHungerLevel(points / PerkFactor(0x863D32))  ; _SH_PerkRank_Connoisseur
+	elseif need == 1 && m.Thirst
+		m.Thirst.DecreaseThirstLevel(points / PerkFactor(0x863D2F))  ; _SH_PerkRank_Hydrated
+	endif
+EndFunction
+
+float Function PerkFactor(int rankId) global
+	GlobalVariable rank = Game.GetFormFromFile(rankId, "SunHelmSurvival.esp") as GlobalVariable
+	int r = 0
+	if rank
+		r = rank.GetValueInt()  ; a perk rank: a whole number (Codex review 2026-11-22e L2)
+	endif
+	if r == 1
+		return 1.1
+	elseif r == 2
+		return 1.15
+	endif
+	return 1.0
+EndFunction
+
 ; SunHelm's Slumber perk adds 10% (rank 1) or 15% (rank 2) to every rest DecreaseFatigueLevel gives
 ; (_SH_PerkRank_Slumber 0x863D30): amounts worked out in real points are divided by this first, so they land exactly
 float Function SlumberFactor() global
-	GlobalVariable rank = Game.GetFormFromFile(0x863D30, "SunHelmSurvival.esp") as GlobalVariable
-	if rank && rank.GetValue() == 2.0
-		return 1.15
-	elseif rank && rank.GetValue() == 1.0
-		return 1.1
-	endif
-	return 1.0
+	return PerkFactor(0x863D30)
 EndFunction
 
 ; camp rest: real tiredness points (the 25% its bedroll held back, Slumber included, worked out by the plugin)

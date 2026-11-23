@@ -393,10 +393,181 @@
 		return Lower(plugin + "_" + std::to_string(local));
 	}
 
-	// A pure potion's flavour, or empty. Pure: every effect is beneficial and points to the same flavour (data.json
-	// "pfx.<effect form ID>"); a named potion can follow its theme instead ("pov.<key>": Ice Wraith Essence is Chilly).
-	// Foods, poisons and mixed potions are not seasonings. Player-made potions are judged the same way.
-	std::unordered_map<RE::FormID, std::string> g_flavourCache;  // under g_cookLock; cleared on revert
+	// What one potion effect does for the pot, judged by the value it changes, not by its form ID (2026-11-22, his rule
+	// "d"): alchemy mods reuse vanilla effect IDs for other jobs (Apothecary's Fortify Heavy Armor became Fortify
+	// Shouts; CACO's Fortify One-handed raises the skill itself), so an ID says nothing about what a potion does now.
+	// The table is vanilla's own: the actor value of each of the 20 vanilla potion effects that had a flavour in
+	// data.json ("pfx.<id>", read from Skyrim.esm 2026-11-22), the skill those values belong to (CACO and other mods
+	// fortify the skill), plus his choices: armor rating, armor power, Alteration, Resist Magic, spell absorption, health (Fortify and
+	// Restore) and Reflect Damage Hearty, stamina Mighty, magicka Brainy (his rule 2026-11-22: "effects that help tanking should be hearty"; the element resists keep
+	// their flavours),
+	// unarmed damage Mighty, Resist Disease Earthy.
+	// Value Modifier and Peak Value Modifier effects change one value and are judged by it; of the other kinds only
+	// Invisibility (Sneaky) and the two cures (Earthy, like the resists) have a flavour (his OK 2026-11-22 19:14).
+	std::string EffectFlavour(const RE::EffectSetting* a_effect)
+	{
+		using Arch = RE::EffectSetting::Archetype;
+		const auto arch = a_effect->GetArchetype();
+		if (arch == Arch::kInvisibility) {
+			return "Sneaky";
+		}
+		if (arch == Arch::kCureDisease || arch == Arch::kCurePoison) {
+			return "Earthy";
+		}
+		if (arch != Arch::kValueModifier && arch != Arch::kPeakValueModifier) {
+			return {};
+		}
+		switch (static_cast<std::int32_t>(std::to_underlying(a_effect->data.primaryAV))) {
+		case 135:  // one-handed damage (vanilla Fortify One-handed)
+		case 136:  // two-handed damage
+		case 137:  // archery damage
+		case 157:  // stamina regen
+		case 6:    // the One-handed skill
+		case 7:    // Two-handed
+		case 8:    // Archery
+		case 35:   // unarmed damage (his choice)
+			return "Mighty";
+		case 148:  // Conjuration
+		case 149:  // Destruction
+		case 150:  // Illusion
+		case 151:  // Restoration
+		case 156:  // magicka regen
+		case 19:   // Conjuration
+		case 20:   // Destruction
+		case 21:   // Illusion
+		case 22:   // Restoration
+			return "Brainy";
+		case 11:   // Heavy Armor
+		case 12:   // Light Armor
+		case 138:  // block power (vanilla Fortify Block)
+		case 155:  // health regen
+		case 9:    // the Block skill
+		case 39:   // armor rating (his choice)
+		case 140:  // heavy armor power (his choice 2026-11-22: "armor is hearty"; Claude review L4)
+		case 141:  // light armor power
+		case 147:  // Alteration power (vanilla Fortify Alteration; his choice 2026-11-22: Alteration is armor magic, Hearty)
+		case 18:   // the Alteration skill
+		case 44:   // Resist Magic (his choice 2026-11-22: "resist magic in general ... should also be hearty"; the element resists keep their flavours)
+		case 83:   // spell absorption chance (his "atronach effects": the Atronach Stone's Absorb Spells)
+		case 163:  // Reflect Damage (tanking)
+			return "Hearty";
+		case 24:   // Health, Fortify and Restore (his rule 2026-11-22: the flavours' second parts, the regens, say what these potions
+		           // do: health Hearty, stamina Mighty, magicka Brainy)
+			return "Hearty";
+		case 26:   // Stamina, Fortify and Restore
+			return "Mighty";
+		case 25:   // Magicka, Fortify and Restore
+			return "Brainy";
+		case 144:  // sneak power (vanilla Fortify Sneak)
+		case 142:  // pickpocket power
+		case 15:   // the Sneak skill
+		case 13:   // Pickpocket
+		case 143:  // lockpicking power (vanilla Fortify Lockpicking; his "lockpicking is a thief skill", 2026-11-22)
+		case 14:   // the Lockpicking skill
+		case 92:   // movement noise (Muffle)
+			return "Sneaky";
+		case 43:   // Resist Frost
+			return "Spicy";
+		case 41:   // Resist Fire
+			return "Chilly";
+		case 42:   // Resist Shock
+			return "Zesty";
+		case 40:   // Resist Poison
+		case 45:   // Resist Disease (his choice; Earthy meals give it too)
+			return "Earthy";
+		default:
+			return {};
+		}
+	}
+
+	// How a potion seasons the pot (2026-11-22, his rules "d" and "the name is more important, like we did with the
+	// foods; the first good effect as a fall back; the player can change"):
+	//  - any harmful effect: not a seasoning (poisons and foods never are);
+	//  - good effects with no flavour (Waterbreathing, Fortify Smithing, Fortify Shouts) are ignored;
+	//  - one flavour among the rest: that flavour (Restore Health is Hearty, Restore Stamina Mighty);
+	//  - several flavours: a POTION word of one of them in the name (word file), else the first effect with a flavour;
+	//  - a themed potion ("pov.<key>": Ice Wraith Essence is Chilly) follows its theme;
+	//  - the player's choice on the Potions page (or a patch file's) wins over all of it.
+	// Player-made potions (FF IDs: another potion in every save) are judged the same way, without a hand choice.
+	FCPatch::Words g_potionWords;  // the patcher's word files, kept for the POTION words (set once at game start, read-only after)
+	std::unordered_map<std::string, std::string> g_potionChoice;  // under g_cookLock: potion key -> "NONE" or a flavour
+
+	struct PotionVerdict
+	{
+		std::string              flavour;   // "" = not a seasoning
+		std::vector<std::string> flavours;  // the potion's own flavours, in effect order, each once
+		bool                     harmful = false;
+		std::string              why;       // one flavour / several: the name / several: the first effect / no flavour / harmful / theme / by hand
+	};
+
+	std::string PotionKey(const RE::AlchemyItem* a_alch)
+	{
+		auto file = a_alch ? a_alch->GetFile(0) : nullptr;
+		return file ? FCPatch::ItemKey(file->GetFilename(), a_alch->GetLocalFormID()) : std::string();
+	}
+
+	// a_byHand: use the player's (or a patch file's) choice; the caller holds g_cookLock when it is true
+	PotionVerdict JudgePotion(const RE::AlchemyItem* a_alch, bool a_byHand)
+	{
+		PotionVerdict v;
+		for (auto effect : a_alch->effects) {
+			auto base = effect ? effect->baseEffect : nullptr;
+			if (!base) {
+				continue;
+			}
+			// harmful: the game's flag, or an effect that lowers a value without it (a mod's built-in drawback, e.g. Fortify
+			// Stamina -20): his pure rule (2026-11-22, Claude review L3: "we made the pure call to avoid situations like this")
+			if (base->IsDetrimental() || effect->effectItem.magnitude < 0.0f) {
+				v.harmful = true;
+				continue;
+			}
+			if (const auto f = EffectFlavour(base); !f.empty() && std::ranges::find(v.flavours, f) == v.flavours.end()) {
+				v.flavours.push_back(f);
+			}
+		}
+		if (v.harmful) {
+			v.why = "harmful";
+			return v;  // never a seasoning, whatever the page says
+		}
+		if (a_byHand && !a_alch->IsDynamicForm()) {
+			if (const auto it = g_potionChoice.find(PotionKey(a_alch)); it != g_potionChoice.end()) {
+				v.flavour = it->second == "NONE" ? std::string() : it->second;
+				v.why = "by hand";
+				return v;
+			}
+		}
+		if (const auto theme = Str("pov." + PlainKeyOf(a_alch)); !theme.empty()) {
+			v.flavour = theme;
+			v.why = "theme";
+		} else if (v.flavours.empty()) {
+			v.why = "no flavour";
+		} else if (v.flavours.size() == 1) {
+			v.flavour = v.flavours.front();
+			v.why = "one flavour";
+		} else if (const auto named = g_potionWords.PotionWord(std::string(a_alch->GetFullName()), v.flavours); !named.empty()) {
+			v.flavour = named;
+			v.why = "name";
+		} else {
+			v.flavour = v.flavours.front();
+			v.why = "first effect";
+		}
+		return v;
+	}
+
+	std::unordered_map<RE::FormID, std::string> g_flavourCache;  // under g_cookLock; cleared on revert and when the page changes a potion
+
+	// the hand choices in force: patch files' POTION lines with the player's on top (merged by the caller). Game start and
+	// Import both come here, so an imported choice works at once (Claude review 2026-11-22, L1). Never called with
+	// g_editsLock held (one lock order)
+	void SetPotionChoices(const std::map<std::string, std::string>& a_merged)
+	{
+		CookLock lock(g_cookLock);
+		g_potionChoice.clear();
+		for (const auto& [key, value] : a_merged) {
+			if (value != "AUTO") g_potionChoice[key] = value;  // AUTO: the player's "Automatic" over a patch file's choice
+		}
+		g_flavourCache.clear();
+	}
 	std::string PotionFlavour(const RE::TESForm* a_form)
 	{
 		CookLock lock(g_cookLock);
@@ -408,18 +579,7 @@
 		if (const auto it = cache.find(alch->GetFormID()); it != cache.end()) {
 			return it->second;
 		}
-		std::string flavour = Str("pov." + PlainKeyOf(alch));
-		if (flavour.empty()) {
-			for (auto effect : alch->effects) {
-				auto base = effect ? effect->baseEffect : nullptr;
-				const auto mapped = base && !base->IsDetrimental() ? Str(std::format("pfx.{}", base->GetFormID())) : std::string();
-				if (mapped.empty() || (!flavour.empty() && mapped != flavour)) {
-					flavour.clear();  // an effect with no flavour, a harmful one, or a second flavour: not pure
-					break;
-				}
-				flavour = mapped;
-			}
-		}
+		std::string flavour = JudgePotion(alch, true).flavour;
 		if (!alch->IsDynamicForm()) {  // a player-made potion's ID (FF...) means another potion in another save
 			cache.emplace(alch->GetFormID(), flavour);
 		}
@@ -450,7 +610,7 @@
 		bool base{ false };  // can be (part of) a dish's base
 
 		bool main{ false };  // makes a dish on its own (meat, fish, a vegetable)
-		bool potion{ false };  // a pure potion: a one-star seasoning, one per pot, never needs tasting
+		bool potion{ false };  // a pure potion: a one-star seasoning like any other (several per pot since 2026-11-22), never needs tasting
 
 		bool Known() const { return !flavour.empty() || !filler.empty() || alcohol || garlic || brew > 0 || dragon > 0 || base; }
 		// What a dish is made of: anything that makes a dish on its own, a sweetener, grain or fruit (they brew
@@ -1071,14 +1231,14 @@
 				enablerStar += 1;
 			}
 
-			// 3. Seasonings set the effect and add stars (only one potion counts, as the cure or as a seasoning). In a
+			// 3. Seasonings set the effect and add stars (every potion counts like any seasoning: his 2026-11-22 "drop the only
+			// one potion counts rule; clashes and base ingredients already count for realism"). In a
 			// dragon brew the other seasonings go first, then the extra drink ingredients: those of the drink's flavour
 			// season it, the rest are its body
-			bool potionUsed = needGarlic && ing[garlicIdx].potion;
 			const bool brewBody = withDragon && r.drink;
 			for (int round = brewBody ? 0 : 1; round < 2; ++round) {
 			for (std::size_t i = 0; i < cnt; ++i) {
-				if (r.used[i] || (ing[i].potion && potionUsed)) {
+				if (r.used[i]) {
 					continue;
 				}
 				if (brewBody && (round == 0) == (ing[i].brew > 0)) {
@@ -1117,7 +1277,6 @@
 					}
 					r.used[i] = true;
 					slotsLeft -= 1;
-					potionUsed = potionUsed || ing[i].potion;
 				}
 			}
 			}

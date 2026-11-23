@@ -90,6 +90,11 @@ namespace FCPatch
 		std::string FlavourWord(const std::string& a_group, const std::string& a_name) const;
 		// the other flavours a group's items can have by a word in their name (FLAVOURWORD lines), in file order
 		std::vector<std::string> FlavourWordsOf(const std::string& a_group) const;
+		// a potion with several flavours: the flavour its name gives (POTION lines), only one of a_allowed (the potion's
+		// own flavours); "" when no word of those flavours is in the name. Same choice as for groups: a specific word
+		// before a generic one, then the word nearest the end, then the longer phrase (2026-11-22, his call: "the name is
+		// more important, like we did with the foods")
+		std::string PotionWord(const std::string& a_name, const std::vector<std::string>& a_allowed) const;
 
 		struct Phrase
 		{
@@ -116,7 +121,7 @@ namespace FCPatch
 		const Entry* Best(const std::vector<Entry>& a_list, const std::string& a_text, bool a_isId) const;
 		bool         Any(const std::vector<Entry>& a_list, const std::string& a_text, bool a_isId) const;
 
-		std::vector<Entry>                               _groups, _dish, _skip, _variant, _namira, _people, _join, _combine, _safeEnd, _dragonBody, _flavour, _salt, _misc, _plain, _cut, _uncooked, _bakedEnd, _bakedAny, _serving, _notBaked, _doughEnd, _doughAny, _shortDrop, _preserved;
+		std::vector<Entry>                               _groups, _dish, _skip, _variant, _namira, _people, _join, _combine, _safeEnd, _dragonBody, _flavour, _salt, _misc, _plain, _cut, _uncooked, _bakedEnd, _bakedAny, _serving, _notBaked, _doughEnd, _doughAny, _shortDrop, _preserved, _potion;
 		std::vector<std::pair<std::string, std::string>> _keywords;  // keyword editor ID -> group / DISH / SKIP
 		struct Category
 		{

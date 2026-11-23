@@ -4,6 +4,9 @@ Float Property HungerRate = 10.5 Auto
 Float Property FatigueRate = 5.0 Auto
 Float Property ThirstRate = 13.0 Auto
 Float Property FatigueState = 100.0 Auto
+Float Property HungerState = 75.0 Auto
+Float Property ThirstState = 75.0 Auto
+Float Property TimeUpdate Auto
 Int Property HasSalmonella = 0 Auto
 Keyword Property Vampire Auto
 GlobalVariable Property _SNVampWereToggle Auto

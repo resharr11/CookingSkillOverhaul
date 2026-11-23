@@ -14,6 +14,9 @@
 //         (a Cooking Skill Overhaul recipe, by the dish it looks like: what SunHelm, Last Seed, iNeed and Realistic Needs count our
 //         cooked copies as while Cooking Skill Overhaul doesn't feed them itself; added 2026-11-15, his call: "let the player choose
 //         by hand with the patcher")
+//   POTION <plugin>|<local ID hex>   <AUTO | NONE | Mighty | Brainy | Hearty | Sneaky | Spicy | Chilly | Zesty | Earthy>
+//         (a potion as a pot seasoning: its flavour, or NONE = not a seasoning; added 2026-11-22, his call: "the player
+//         can change" what a potion with several flavours does)
 // A slot is "item:<plugin>|<local ID hex>" (that ingredient) or "group:<group>" (any ingredient of that group).
 // Columns are split by tabs (not spaces: group names have spaces). Plugin names are compared without regard to case;
 // a plugin name with letters outside English is matched only if the file is saved in the same encoding the game uses.
@@ -67,6 +70,7 @@ namespace FCPatch
 		std::map<std::string, DishEdit>       dishes;
 		std::map<std::string, bool>           misc;  // by the made item's key: true = hidden from the Misc section
 		std::map<std::string, std::string>    needs;  // by the recipe's dish key: NOTFOOD / LIGHT / MEDIUM / HEAVY / DRINK
+		std::map<std::string, std::string>    potions;  // by the potion's key: AUTO / NONE / a flavour (Mighty...)
 
 		// adds the lines of a file; later lines and later files win. Returns the number of lines read; a_bad counts lines
 		// that couldn't be read (they are skipped)
@@ -80,8 +84,11 @@ namespace FCPatch
 		void        Replace(const EditSet& a_top);
 		// drops entries that are all automatic, except for keys in a_keep (an all-AUTO player entry over a patch file)
 		void        Clean(const std::vector<std::string>* a_keep = nullptr);
-		bool        Empty() const { return ingredients.empty() && dishes.empty() && misc.empty() && needs.empty(); }
+		bool        Empty() const { return ingredients.empty() && dishes.empty() && misc.empty() && needs.empty() && potions.empty(); }
 	};
 
 	const char* ChoiceName(DishChoice a_c);  // AUTO / NEW / NOT / MISC
+	// a POTION line's value as the file and the game use it: "AUTO", "NONE" or a flavour with its capital ("Mighty");
+	// "" if it isn't one of those
+	std::string PotionValue(std::string_view a_text);
 }

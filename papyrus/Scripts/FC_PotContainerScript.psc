@@ -48,6 +48,8 @@ Function ListenToMenu()
 	RegisterForModEvent("FC_OtherThirst", "OnOtherThirst")
 	RegisterForModEvent("FC_INeedWoke", "OnINeedWoke")
 	RegisterForModEvent("FC_CampRestPay", "OnCampRestPay")
+	RegisterForModEvent("FC_HoldNeeds", "OnHoldNeeds")
+	RegisterForModEvent("FC_SkipGiveBack", "OnSkipGiveBack")
 	CollectCampRestPay()  ; rest that waited while nothing listened (a drink right after a load)
 EndFunction
 
@@ -74,6 +76,46 @@ EndEvent
 ; as a mod event, so it never calls the scripts directly (his rule: C++ doesn't call into Papyrus; 2026-11-16)
 Event OnOtherThirst(string eventName, string strArg, float numArg, Form sender)
 	FC_Core.OtherThirst(numArg)
+EndEvent
+
+; the hold: which mods' hunger and thirst rates a running dish holds at 0 (numArg: hunger owner + 16 x thirst owner;
+; FC_Core.HoldNeeds). Sent by the plugin when it changes and every 10 s
+; One run at a time, newest request only (Claude review 2026-11-22d M2, Codex P1): HoldNeeds calls natives and the
+; frame-synced FC_Menu.SetRate, where this script's lock is let go, so a second event could start a run that restores
+; a rate while the first deletes its kept value. As RequestRecalc: the check-and-set happens before any outside call
+; A run belongs to the game it started in (holdSession, FC_Menu.HoldSession changes at every load and every Skyrim
+; start): a busy flag saved while a run waited in a native, whose stack the load didn't bring back, would block every
+; later request and leave a rate at 0 (Claude review 2026-11-22e L6), so a busy flag from an older game doesn't count.
+; The request is noted before the native call (Claude 22f F3: newest request wins); the session check-and-set has no
+; outside call between them. A run of an older game that the load brought back stops at its next loop and leaves the
+; busy flag to the new run (Claude 22f F2)
+int holdWanted = 0
+bool holdBusy = false
+bool holdDirty = false
+int holdSession = 0
+
+Event OnHoldNeeds(string eventName, string strArg, float numArg, Form sender)
+	holdWanted = numArg as int
+	holdDirty = true
+	int session = FC_Menu.HoldSession()
+	if holdBusy && holdSession == session
+		return
+	endif
+	holdBusy = true
+	holdSession = session
+	while holdDirty && holdSession == session
+		holdDirty = false
+		FC_Core.HoldNeeds(holdWanted)
+	endwhile
+	if holdSession == session
+		holdBusy = false
+	endif
+EndEvent
+
+; after a sleep, wait or trip: give back the share of the rise the dish covered (strArg "owner,need", numArg: the points
+; in that mod's scale; FC_Core.SkipGiveBack)
+Event OnSkipGiveBack(string eventName, string strArg, float numArg, Form sender)
+	FC_Core.SkipGiveBack(StringUtil.Substring(strArg, 0, 1) as int, StringUtil.Substring(strArg, 2, 1) as int, numArg)
 EndEvent
 
 Event OnMenuCook(string eventName, string strArg, float numArg, Form sender)

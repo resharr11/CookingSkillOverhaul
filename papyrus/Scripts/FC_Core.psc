@@ -380,35 +380,14 @@ string Function KeyOf(Form akForm) global
 	return PlainKeyOf(akForm)
 EndFunction
 
-; A pure potion's flavour, or "": every effect beneficial and pointing to the same flavour ("pfx.<effect form ID>"
-; in data.json), or a named potion's theme ("pov.<key>": Ice Wraith Essence is Chilly). Same rules as the plugin.
+; A potion's flavour as a pot seasoning, or "": the plugin judges it by the same rule as the cooking screen (harmful
+; effects, the player's choice on the Potions page, a name word, the first flavoured effect; FC_Menu.PotionFlavourOf).
+; This script kept its own older copy of the rule until 2026-11-22 (review M1): one rule, one place.
 string Function PotionFlavour(Form akForm) global
-	Potion p = akForm as Potion
-	if !p || p.IsFood() || p.IsHostile()
+	if !akForm
 		return ""
 	endif
-	string dataPath = DataFile()
-	string themed = FC_Menu.RuleText("pov." + PlainKeyOf(akForm))
-	if themed != ""
-		return themed
-	endif
-	string flavour = ""
-	int n = p.GetNumEffects()
-	int i = 0
-	while i < n
-		MagicEffect fx = p.GetNthEffectMagicEffect(i)
-		; 0x4: a harmful effect
-		if !fx || fx.IsEffectFlagSet(0x00000004)
-			return ""
-		endif
-		string mapped = FC_Menu.RuleText("pfx." + fx.GetFormID())
-		if mapped == "" || (flavour != "" && mapped != flavour)
-			return ""
-		endif
-		flavour = mapped
-		i += 1
-	endwhile
-	return flavour
+	return FC_Menu.PotionFlavourOf(akForm.GetFormID())
 EndFunction
 
 string Function PlainKeyOf(Form akForm) global
@@ -636,14 +615,13 @@ Function Recalc(ObjectReference pot) global
 			enablerStar += 1
 		endif
 
-		; 3. Seasonings set the effect and add stars (only one potion counts, as the cure or as a seasoning). In a dragon
+		; 3. Seasonings set the effect and add stars (every potion counts like any seasoning: his 2026-11-22 "drop the only one
+		; potion counts rule"; same as the plugin's Rules.inl). In a dragon
 		; brew the drink ingredients wait (round 1 below): those of the drink's flavour season it, the rest are its body
-		bool potionUsed = needGarlic && StringUtil.Find(keys[garlicIdx], "potion_") == 0
 		bool brewBody = withDragon && isDrink
 		i = 0
 		while i < cnt
-			bool isPotion = StringUtil.Find(keys[i], "potion_") == 0
-			if !used[i] && !(isPotion && potionUsed) && !(brewBody && IngInt(dataPath, keys[i], "b") > 0)
+			if !used[i] && !(brewBody && IngInt(dataPath, keys[i], "b") > 0)
 				string c = IngStr(dataPath, keys[i], "c")
 				if c != ""
 					string q = IngStr(dataPath, keys[i], "q")
@@ -660,9 +638,6 @@ Function Recalc(ObjectReference pot) global
 						endif
 						used[i] = true
 						slotsLeft -= 1
-						if isPotion
-							potionUsed = true
-						endif
 					endif
 				endif
 			endif
@@ -1470,7 +1445,7 @@ EndFunction
 
 ; Shared Table (perk): followers who are following you near you share the meal or drink you just ate, at the same level
 ; and duration. Each gets the effect best for them (the plugin picks it from their best combat skill: weapons and archery
-; Mighty, magic Brainy, Heavy Armor and Block Hearty; never Sneaky); elemental dishes are shared as they are.
+; Mighty, magic Brainy, armor, Block and Alteration Hearty; never Sneaky); elemental dishes are shared as they are.
 Function ShareMeal(MagicEffect eatFx, int mag, int dur) global
 	if !HasTreePerk(0x857)
 		Debug.Trace("[FC] Shared Table: no perk")
@@ -1588,16 +1563,19 @@ Function ShareMeal(MagicEffect eatFx, int mag, int dur) global
 EndFunction
 
 ; Shared Table, ranked buffs (his design 2026-11-16: "maybe we do ranked buffs? their best is always first"): a
-; follower ranks Mighty, Brainy and Hearty by their own skills (weapons and archery, magic, Heavy Armor and Block; ties
-; go in that order, as the plugin's SharedTableCategory) and gets the best one not already running in another of their
+; follower ranks Mighty, Brainy and Hearty by their own skills (weapons and archery, magic, Heavy and Light Armor,
+; Block and Alteration (his choices 2026-11-22: Light Armor and Alteration, the armor school, Hearty, as in the potion rule); ties
+; go to the follower's attack skill (the higher of weapons and magic; weapons on a tie), then Hearty, then the other
+; (his rule 2026-11-22: "attack skill, hearty then the other skill", "the attack skill depends on the follower"), as the
+; plugin's SharedTableCategory) and gets the best one not already running in another of their
 ; slots. Before this, a Brainy meal and a Mighty drink both became Mighty for a warrior, and the drink took the meal
 ; away while the player kept both. A buff keeps its flavour until it ends or the player's dish in that slot is replaced
 ; (his "a": no switching in the middle of a buff). Returns 0 Mighty, 1 Brainy, 2 Hearty
 int Function SharedTableRank(Actor follower, bool drink, bool baked) global
 	float[] score = new float[3]
 	score[0] = MaxAV(follower, "OneHanded", "TwoHanded", "Marksman", "", "")
-	score[1] = MaxAV(follower, "Destruction", "Conjuration", "Alteration", "Illusion", "Restoration")
-	score[2] = MaxAV(follower, "HeavyArmor", "Block", "", "", "")
+	score[1] = MaxAV(follower, "Destruction", "Conjuration", "Illusion", "Restoration", "")
+	score[2] = MaxAV(follower, "HeavyArmor", "LightArmor", "Block", "Alteration", "")
 	string[] names = new string[3]
 	names[0] = "Mighty"
 	names[1] = "Brainy"
@@ -1612,18 +1590,27 @@ int Function SharedTableRank(Actor follower, bool drink, bool baked) global
 	slots[0] = "FC_FoodSpell"
 	slots[1] = "FC_DrinkSpell"
 	slots[2] = "FC_BakedSpell"
+	int[] tieOrder = new int[3]
+	tieOrder[0] = 0
+	tieOrder[1] = 2
+	tieOrder[2] = 1
+	if score[1] > score[0]
+		tieOrder[0] = 1  ; a mage: magic is the attack skill
+		tieOrder[2] = 0
+	endif
 	bool[] tried = new bool[3]
 	int first = -1
 	int round = 0
 	while round < 3
-		; the best flavour not tried yet (a tie keeps the order Mighty, Brainy, Hearty)
+		; the best flavour not tried yet (a tie keeps the order attack skill, Hearty, other)
 		int pick = -1
-		int c = 0
-		while c < 3
+		int k = 0
+		while k < 3
+			int c = tieOrder[k]
 			if !tried[c] && (pick < 0 || score[c] > score[pick])
 				pick = c
 			endif
-			c += 1
+			k += 1
 		endwhile
 		tried[pick] = true
 		if first < 0
@@ -1976,6 +1963,147 @@ Function OtherThirst(float hours) global
 	endif
 EndFunction
 
+; ---- the hold (his design 2026-11-22: "we copy star frost", "lower hunger then hold") ----
+; While a meal or baked dish's effect runs, hunger doesn't rise; while a brewed drink's effect runs, thirst doesn't.
+; The plugin works out which mod runs each need and sends the mod event FC_HoldNeeds (number: the hunger owner + 16 x the
+; thirst owner, 0 where nothing is held; owners as FC_Menu.NeedOwner: 1 Survival Mode, 2 Survival Mode Improved,
+; 3 SunHelm, 4 Last Seed, 5 iNeed, 6 Realistic Needs) when that changes and every 10 s. Every needs mod adds the time
+; passed x a rate it reads at each update (read from their own scripts 2026-11-22), so the rate is set to 0 and given
+; back afterwards. A rate's own value is kept on it in PapyrusUtil storage ("FC_HeldRate", saved with the game) and the
+; rates held are listed in "FC_HeldRates"; a rate someone changed during the hold (the player in that mod's menu, or
+; Survival Mode Improved putting its own back at a load) is kept as it is now and held again.
+; Sleeping, waiting and travel (his design 2026-11-22): the plugin gives the rates back itself when a skip starts, and
+; after it gives back the share of the rise the dish covered (FC_SkipGiveBack, SkipGiveBack below). For iNeed it adds
+; flags to the request: 256 hunger, 512 thirst: a skip is being counted (FC_INeedBridge.Hold), 1024: the last call, and
+; the skip's number x 2048 (so an old request can't settle a newer skip; Codex review 2026-11-22e P3).
+Function HoldNeeds(int request) global
+	int hungerOwner = request % 16
+	int thirstOwner = (request / 16) % 16
+	bool skipHunger = (request / 256) % 2 == 1
+	bool skipThirst = (request / 512) % 2 == 1
+	bool skipFinal = (request / 1024) % 2 == 1
+	int skipId = request / 2048
+	GlobalVariable wantHunger = HoldRateGlobal(hungerOwner, false)
+	GlobalVariable wantThirst = HoldRateGlobal(thirstOwner, true)
+	; Last Seed also pays out the updates it saved up while the player was "focused" with its base rate alone
+	; (_Seed_AttributeSystem.RunDelayedCycles; Codex review 2026-11-22d M2), so its base rates are held too (his OK 21:41)
+	GlobalVariable wantHunger2 = none
+	GlobalVariable wantThirst2 = none
+	if hungerOwner == 4
+		wantHunger2 = Game.GetFormFromFile(0x0029CB, "LastSeed.esp") as GlobalVariable  ; _Seed_HungerRate
+	endif
+	if thirstOwner == 4
+		wantThirst2 = Game.GetFormFromFile(0x0029D3, "LastSeed.esp") as GlobalVariable  ; _Seed_ThirstRate
+	endif
+	; a copy of the list, and entries removed by value, never by an index the list may have moved under (review 2026-11-22d)
+	Form[] heldList = StorageUtil.FormListToArray(none, "FC_HeldRates")
+	int i = heldList.Length
+	while i > 0
+		i -= 1
+		GlobalVariable held = heldList[i] as GlobalVariable
+		if !held
+			StorageUtil.FormListRemove(none, "FC_HeldRates", heldList[i], true)  ; its plugin is gone: nothing to give back
+		elseif held != wantHunger && held != wantThirst && held != wantHunger2 && held != wantThirst2
+			ReleaseRate(held)
+			StorageUtil.FormListRemove(none, "FC_HeldRates", held, true)
+		endif
+	endwhile
+	HoldRate(wantHunger)
+	HoldRate(wantThirst)
+	HoldRate(wantHunger2)
+	HoldRate(wantThirst2)
+	; iNeed: its bridge holds the needs' values instead of its rates (his OK 2026-11-22 21:41; only loaded while iNeed is in use)
+	; (iNeed removed from the game while something was held: its rates went with it, and the bridge can't run without
+	; its script types, so only the flag is cleared; review 2026-11-22d L6)
+	if !Game.IsPluginInstalled("iNeed.esp")
+		StorageUtil.UnsetIntValue(none, "FC_INeedHeld")
+	elseif hungerOwner == 5 || thirstOwner == 5 || StorageUtil.GetIntValue(none, "FC_INeedHeld") != 0
+		FC_INeedBridge.Hold(hungerOwner == 5, thirstOwner == 5, skipHunger, skipThirst, skipFinal, skipId)
+	endif
+EndFunction
+
+; the rate global a hold sets to 0 (none: nothing to hold there, or iNeed)
+GlobalVariable Function HoldRateGlobal(int owner, bool thirst) global
+	if owner == 1 || owner == 2
+		if thirst
+			return none  ; Survival Mode has no thirst (ours is held in the plugin)
+		endif
+		return Game.GetFormFromFile(0x829, "ccQDRSSE001-SurvivalMode.esl") as GlobalVariable  ; Survival_HungerNeedRate
+	elseif owner == 3
+		if thirst
+			return Game.GetFormFromFile(0x05C473, "SunHelmSurvival.esp") as GlobalVariable  ; _SHThirstRate
+		endif
+		return Game.GetFormFromFile(0x00EAAF, "SunHelmSurvival.esp") as GlobalVariable  ; _SHHungerRate
+	elseif owner == 4
+		if thirst
+			return Game.GetFormFromFile(0x0513F9, "LastSeed.esp") as GlobalVariable  ; _Seed_Setting_RateMulti_Thirst
+		endif
+		return Game.GetFormFromFile(0x0513F8, "LastSeed.esp") as GlobalVariable  ; _Seed_Setting_RateMulti_Hunger
+	elseif owner == 6
+		string file = "RealisticNeedsandDiseases.esp"
+		if !Game.IsPluginInstalled(file)
+			file = "MVC Nirnfeel Immersion.esp"
+		endif
+		if thirst
+			return Game.GetFormFromFile(0x002E08, file) as GlobalVariable  ; RND_ThirstPointsPerHour
+		endif
+		return Game.GetFormFromFile(0x002DE7, file) as GlobalVariable  ; RND_HungerPointsPerHour
+	endif
+	return none
+EndFunction
+
+Function HoldRate(GlobalVariable rate) global
+	if !rate
+		return
+	endif
+	if !StorageUtil.HasFloatValue(rate, "FC_HeldRate") || rate.GetValue() != 0.0
+		StorageUtil.SetFloatValue(rate, "FC_HeldRate", rate.GetValue())
+		FC_Menu.SetRate(rate, 0.0)  ; through the plugin: Survival_HungerNeedRate is a constant global
+	endif
+	StorageUtil.FormListAdd(none, "FC_HeldRates", rate, false)
+	FC_Menu.NoteHeld(rate, StorageUtil.GetFloatValue(rate, "FC_HeldRate"))  ; every run: also after a load
+EndFunction
+
+Function ReleaseRate(GlobalVariable rate) global
+	if !rate || !StorageUtil.HasFloatValue(rate, "FC_HeldRate")
+		return
+	endif
+	if rate.GetValue() == 0.0
+		FC_Menu.SetRate(rate, StorageUtil.GetFloatValue(rate, "FC_HeldRate"))
+	endif
+	StorageUtil.UnsetFloatValue(rate, "FC_HeldRate")
+	FC_Menu.NoteReleased(rate)
+EndFunction
+
+; after a skip (sleep, wait, travel): the share of the rise the dish still covered, in the mod's own points, given back
+; through that mod's own functions (the plugin works out the points: FC_SkipGiveBack; Realistic Needs and our own
+; thirst it lowers itself). need: 0 hunger, 1 thirst
+Function SkipGiveBack(int owner, int need, float points) global
+	if points <= 0.0
+		return
+	endif
+	if owner == 1 && need == 0
+		FC_SurvivalBridge.FeedHunger(points)
+	elseif owner == 2 && need == 0
+		SurvivalModeImprovedApi.RestoreHungerLevel(points)
+	elseif owner == 3
+		FC_SunHelmBridge.GiveBack(need, points)
+	elseif owner == 4
+		FC_LastSeedBridge.GiveBack(need, points)
+	endif
+EndFunction
+
+; a rate as its mod set it, also while a hold keeps it at 0 (the bridges turn game hours into points with it)
+float Function RateNow(GlobalVariable rate) global
+	if !rate
+		return 0.0
+	endif
+	if rate.GetValue() == 0.0 && StorageUtil.HasFloatValue(rate, "FC_HeldRate")
+		return StorageUtil.GetFloatValue(rate, "FC_HeldRate")
+	endif
+	return rate.GetValue()
+EndFunction
+
 ; Realistic Needs and Diseases has no functions for this: its own food lowers the points global directly
 ; (rnd_eatfood.psc), and its stage follows on its next check. 1000 hours or more: all of it
 Function RNDLower(int pointsId, int rateId, float fallbackRate, float hours) global
@@ -1989,8 +2117,8 @@ Function RNDLower(int pointsId, int rateId, float fallbackRate, float hours) glo
 		return
 	endif
 	float perHour = fallbackRate
-	if rate && rate.GetValue() > 0.0
-		perHour = rate.GetValue()
+	if RateNow(rate) > 0.0
+		perHour = RateNow(rate)  ; its own rate, also while a dish holds it at 0 (HoldNeeds)
 	endif
 	float after = 0.0
 	if hours < 1000.0

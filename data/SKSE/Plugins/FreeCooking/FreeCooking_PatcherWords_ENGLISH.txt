@@ -78,6 +78,18 @@ JOIN	of, with, in, and
 COMBINE	and, with
 # ---- Our own flavour words. A dish name starting with one loses it (we add our own).
 FLAVOUR	mighty, brainy, hearty, sneaky, spicy, chilly, zesty, earthy
+# ---- Potions with several flavours (a good potion whose effects point to two or more flavours): a word of one of its
+# own flavours in its name decides; without one, its first effect with a flavour decides; the player can change it on
+# the Potions page. Only general effect and skill names here. Lines: POTION<TAB><flavour><TAB><words>.
+# Add your own words if your potion mod names its potions by theme (for example: POTION	Sneaky	thief, shadow).
+POTION	Mighty	one-handed, one handed, two-handed, two handed, archery, marksman, unarmed, stamina
+POTION	Brainy	destruction, conjuration, illusion, restoration, magicka
+POTION	Hearty	heavy armor, heavy armour, light armor, light armour, armor, armour, block, blocking, health, alteration, resist magic, magic resistance, magic resist, spell absorption, absorb spells, absorption, atronach
+POTION	Sneaky	sneak, sneaking, pickpocket, pickpocketing, stealth, lockpicking, lockpick, invisibility, invisible, muffle, muffling
+POTION	Spicy	resist frost, frost resistance, frost
+POTION	Chilly	resist fire, fire resistance, fire
+POTION	Zesty	resist shock, shock resistance, shock
+POTION	Earthy	resist poison, poison resistance, poison, resist disease, disease resistance, disease, cure disease, cure poison
 # ---- Salt: ignored when counting a recipe's ingredients and never a recipe slot.
 SALT	salt, salt pile, salts
 # ---- Restrictions.

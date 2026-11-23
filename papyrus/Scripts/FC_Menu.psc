@@ -77,6 +77,24 @@ bool Function SurvivalInstalled() global native
 
 ; the game hours the last brewed drink quenches in another mod's thirst (given out once; 1000: fully)
 float Function TakeOtherThirst() global native
+; the hold (FC_Core.HoldRate / ReleaseRate): sets a needs mod's rate global, also a constant one like Survival Mode's
+; Survival_HungerNeedRate, which GlobalVariable.SetValue refuses
+Function SetRate(GlobalVariable rate, float value) global native
+; the hold and skips (sleeping, waiting, travel): FC_Core.HoldRate / ReleaseRate tell the plugin which rates are held and
+; their own values, so it can give them back the moment a skip starts
+Function NoteHeld(GlobalVariable rate, float own) global native
+Function NoteReleased(GlobalVariable rate) global native
+; iNeed's bridge after a skip: the share of the loss the dish covered (need 0 hunger, 1 thirst; skip: the number its
+; request carried; -1: that skip isn't being settled any more, give nothing back now), and done
+float Function SkipShare(int need, int skip) global native
+Function SkipDone(int need, int skip) global native
+; iNeed's bridge: a skip of this need is being counted (a plain hold must not give its loss back)
+bool Function SkipPending(int need) global native
+; iNeed's bridge: game days when the newest skip ended (-1: still running, or an old skip number); it settles once
+; iNeed's own clock (_SNQuest.TimeUpdate) has reached it
+float Function SkipEndDay(int need, int skip) global native
+; the number of the game running now (changes at every load): the pot script's hold runs from before a load are stale
+int Function HoldSession() global native
 
 ; a Cooking Skill Overhaul Survival feature's switch on the Survival Mode settings page (only the switch; ask SurvivalOn too):
 ; 0 cooked food eases hunger, 1 Spicy holds off the cold, 2 Spicy protects from freezing water, 3 brewed drinks make up
@@ -100,6 +118,9 @@ string Function DishSaveKey(int dish) global native
 ; the pot rules' key for an item: "<plugin without extension>_<local ID in decimal>" (the extension stays when an
 ; earlier plugin has the same name)
 string Function ItemKey(int formId) global native
+
+; a potion's flavour as a pot seasoning ("" = not one), by the plugin's rule (the Potions page included)
+string Function PotionFlavourOf(int formId) global native
 
 ; a dish's name as cooked: a general dish (Meat Stew, Fish Pie) is named after the main ingredient the pot's last
 ; choice used ("Goat Stew"); cat: the flavour ("Mighty Goat Stew"), "" for the plain name
