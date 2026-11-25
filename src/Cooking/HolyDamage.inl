@@ -24,14 +24,28 @@
 // Our own strikes and the weapon hit spells (FC_Hit_*) are recognised by their spell and never add more; the strikes
 // that land are logged, so a test can check the damage that actually arrived.
 //
-// The weapon side (decided 2026-11-03): every weapon hit of the player or of a follower who shares an element meal adds
-// the meal's small element hit (FreeCooking.esp FC_Hit_Spicy/Chilly/Zesty<level>; Earthy: FC_HolyStrike, 1/1/2/2 or
-// 3/5/6/8 against the unholy). It used to be a perk's Apply Combat Hit Spell entry, but the game applies only one spell
+// The weapon side: every weapon hit of the player or of a follower who shares an element meal adds the same share of
+// its damage as a spell hit does (his decision 2026-11-23: "lets do it % based. enchants are flat because enchants can
+// be increased with skills level and perks"; until then a flat 3/4/5/6-style hit scaled by the weapon). The share is
+// taken of the hit's damage without the sneak and power attack multipliers (his pick the same day: element bonuses are
+// never multiplied by sneak or power attacks), cast as FreeCooking.esp FC_Hit_Spicy/Chilly/Zesty<level> or FC_HolyStrike
+// with that amount. It used to be a perk's Apply Combat Hit Spell entry, but the game applies only one spell
 // per hit through that entry point (Scrambled Bugs, Nexus SE 43532; SkyrimMOD作成wiki Tips: only the perk whose priority
 // is nearest 0 counts; TESAll), so vanilla's bleed and paralysis perks and our hit knocked each other out. Now the plugin
 // watches the call where the game sends an actor's weapon hit (AE: ID 38586 + 0xFA, the same place powerof3's Papyrus
 // Extender takes its OnWeaponHit from, unchanged in its 1.7.99 update): once per weapon hit and per target, melee and
-// arrows, with the hit's flags. Bashes and unarmed hits add nothing (as weapon enchantments); blocked hits still do.
+// arrows, with the hit's flags, fists, claws and bashes too; blocked hits still count.
+// What the hit's damage holds at that call (SkyrimSE.exe 1.7.104 read 2026-11-23, HitData::Populate and its helper
+// 0x1407F17C0): the weapon damage (skill, smithing) times the attack's Damage Mult (a power attack's, attack data
+// +0x18, passed into the weapon damage function), Mod Power Attack Damage perks (entry 28) when the hit has the power
+// flag, Calculate Weapon Damage, Mod Attack Damage and Mod Incoming Damage, then the sneak multiplier (the weapon
+// type's fCombatSneak*Mult through Mod Sneak Attack Mult perks, kept at HitData +0x70 with the sneak flag), the
+// critical damage added, and the attacker's Attack Damage Mult. Armour: the in-game test 2026-11-23 showed totalDamage at
+// this call is already after the target's armour (bandit 7.2 against physicalDamage 8.4; no-armour dummy 8.4 = 8.4), while
+// physicalDamage holds the same damage before armour (power x2: 16.8, sneak x3: 25.2). His call the same night: "doest make
+// sense that armor blocks our elementals hits", so the base is physicalDamage (totalDamage if a hit carries none), divided
+// back by the sneak multiplier, and on a power attack by its Damage Mult and its Mod Power Attack Damage perks (vanilla's
+// Savage Strike and Devastating Blow multiply; a mod's perk that adds a flat amount is undone as a multiplier).
 // The hook only notes plain numbers; the cast happens on the main thread in one shared task. The hook is placed only
 // if the game has a call instruction at that spot (otherwise the weapon side stays off and the log says so).
 //
@@ -285,13 +299,13 @@
 	// undead, daedra, vampires, ghosts, werewolves and the raised dead (weapon and spell side alike); main thread
 	bool HolyFoe(RE::Actor* a_actor)
 	{
-		for (const RE::FormID id : { 0x13796u, 0x13797u, 0xA82BBu, 0xD205Eu }) {  // ActorTypeUndead, ActorTypeDaedra, Vampire, ActorTypeGhost
+		for (const RE::FormID id : UNHOLY_KEYWORDS) {  // Earthy's list (Rules.inl), shared with the potion rule
 			if (auto keyword = RE::TESForm::LookupByID<RE::BGSKeyword>(id); keyword && a_actor->HasKeyword(keyword)) {
 				return true;
 			}
 		}
 		const auto race = a_actor->GetRace();
-		if (race && race->GetFormID() == 0xCDD84) {  // WerewolfBeastRace
+		if (race && race->GetFormID() == WEREWOLF_BEAST_RACE) {
 			return true;
 		}
 		// the raised dead (Raise Zombie, Reanimate Corpse, Dead Thrall, a vampire lord's Raise Dead...): the corpse keeps
@@ -467,50 +481,8 @@
 	}
 
 	// ---- the weapon side ----
-	constexpr std::array<std::array<float, 4>, 2> EARTHY_HIT{ { { 1.0f, 1.0f, 2.0f, 2.0f }, { 3.0f, 5.0f, 6.0f, 8.0f } } };  // anyone, unholy
-	constexpr std::array<std::array<float, 4>, 3> ELEMENT_HIT{ { { 3.0f, 4.0f, 5.0f, 6.0f },    // Spicy (as FC_Hit_* in the esp)
-		{ 2.0f, 3.0f, 4.0f, 5.0f },                                                              // Chilly
-		{ 2.0f, 3.0f, 4.0f, 5.0f } } };                                                          // Zesty
-	// Every playstyle gets about the same from a meal per second of fighting (decided 2026-11-03, from measured hit
-	// rates: Nexus forum topic 547147 timed swings per weapon type, GameFAQs topic 61190850 #33 timed dual-wielding,
-	// UESP and Chinese frame tests for bows). The numbers above are a sword's (base damage 8): a lighter weapon keeps
-	// them, a heavier one gets more, by the square root of its base damage (the arrow's added for a bow; no perks or
-	// smithing), up to twice. So two-handers land big extra hits and stay a little ahead, and fast weapons get many
-	// sword-sized ones. A hand of a dual-wielder gives 70%: dual-wielding hits about 1.5x as often as one weapon with
-	// Dual Flurry, which would otherwise put it past two-handers. Fully perked dual daggers end up close to dual swords
-	// but below them (decided 2026-11-03).
-	// Unarmed hits (decided 2026-11-03) scale the same way from the race's unarmed damage (Skyrim.esm: 4 for most races,
-	// 10 Argonian, Khajiit and Vampire Lord, 20 werewolf), plus the Khajiit claws ability (+12) while in Khajiit form;
-	// gear and perks stay out. Two fists get no dual-wield cut (Dual Flurry doesn't speed them up). Every bash, shield,
-	// weapon or power bash, gets the sword's numbers (x1.00). No element during a brawl: the brawl quest ends on any magic
-	// from the player, and a fair fistfight has no magic in it.
-	constexpr float WEAPON_REF_DAMAGE = 8.0f;
-	constexpr float DUAL_HAND_SHARE = 0.7f;
+	// No element during a brawl: the brawl quest ends on any magic from the player, and a fair fistfight has no magic.
 	constexpr RE::FormID BRAWL_FACTION = 0x4CFA6;  // DGIntimidateFaction: the player and the brawlers, for the whole brawl
-	constexpr RE::FormID KHAJIIT_CLAWS = 0xAA01E;  // RaceKhajiitClaws (Fortify Unarmed Damage 12), in the Khajiit races' spells
-
-	float UnarmedDamage(RE::Actor* a_aggressor)
-	{
-		auto race = a_aggressor->GetRace();
-		if (!race) {
-			return 4.0f;
-		}
-		float damage = race->data.unarmedDamage;
-		static auto claws = RE::TESForm::LookupByID<RE::SpellItem>(KHAJIIT_CLAWS);
-		if (claws && race->actorEffects && race->actorEffects->spells) {
-			for (std::uint32_t i = 0; i < race->actorEffects->numSpells; ++i) {
-				if (race->actorEffects->spells[i] == claws) {
-					for (auto effect : claws->effects) {
-						if (effect) {
-							damage += effect->effectItem.magnitude;
-						}
-					}
-					break;
-				}
-			}
-		}
-		return damage;
-	}
 
 	bool InBrawl(RE::Actor* a_aggressor, RE::Actor* a_target)
 	{
@@ -518,35 +490,18 @@
 		return faction && (a_aggressor->IsInFaction(faction) || a_target->IsInFaction(faction));
 	}
 
-	float WeaponHitScale(RE::Actor* a_aggressor, RE::TESObjectWEAP* a_weapon, bool a_bash)
+	// the Mod Power Attack Damage multiplier the game uses on a hit (entry 28: owner, weapon, target). Read in the hook,
+	// before the game applies the hit (Codex review 2026-11-24a R2, his pick "proposed"): read later, a perk whose
+	// condition the hit itself changes (Adamant's Execute: target at half Health or less; Cleave: target staggered) was
+	// counted for a hit it did not apply to. The game reads the same entry on that thread for that hit. Measured in game
+	// 2026-11-24 22:40 (probe, 11 power attacks): the target's Health is unchanged right after the hooked call and lower
+	// when the task runs, and a target went from not staggered to staggered in between; the value read at the hit matched
+	// what the game applied on every hit (physical x1.00 and x1.50 with Adamant's Cleave).
+	float PowerPerkMult(RE::Actor* a_aggressor, RE::TESObjectWEAP* a_weapon, RE::Actor* a_target)
 	{
-		if (a_bash) {
-			return 1.0f;
-		}
-		if (!a_weapon || a_weapon->IsHandToHandMelee()) {
-			return std::clamp(std::sqrt((std::max)(UnarmedDamage(a_aggressor), 0.0f) / WEAPON_REF_DAMAGE), 1.0f, 2.0f);
-		}
-		float damage = static_cast<float>(a_weapon->GetAttackDamage());
-		const bool ranged = a_weapon->IsBow() || a_weapon->IsCrossbow();
-		if (ranged) {
-			if (auto ammo = a_aggressor->GetCurrentAmmo()) {
-				damage += ammo->data.damage;
-			}
-		}
-		float scale = std::clamp(std::sqrt((std::max)(damage, 0.0f) / WEAPON_REF_DAMAGE), 1.0f, 2.0f);
-		if (!ranged) {
-			const auto right = a_aggressor->GetEquippedObject(false);
-			const auto left = a_aggressor->GetEquippedObject(true);
-			const auto oneHanded = [](RE::TESForm* a_form) {
-				auto weapon = a_form ? a_form->As<RE::TESObjectWEAP>() : nullptr;
-				return weapon && weapon->IsMelee() && !weapon->IsHandToHandMelee() &&
-				       (weapon->IsOneHandedSword() || weapon->IsOneHandedDagger() || weapon->IsOneHandedAxe() || weapon->IsOneHandedMace());
-			};
-			if (oneHanded(right) && oneHanded(left)) {
-				scale *= DUAL_HAND_SHARE;
-			}
-		}
-		return scale;
+		float mult = 1.0f;
+		RE::BGSEntryPoint::HandleEntryPoint(RE::BGSEntryPoint::ENTRY_POINT::kModPowerAttackDamage, a_aggressor, a_weapon, a_target, &mult);
+		return mult > 0.01f && mult < 100.0f ? mult : 1.0f;
 	}
 	constexpr RE::FormID HIT_SPELL_FIRST_ELEMENT = 0x950;  // FC_Hit_<element><level>: 0x950 + element * 4 + level - 1
 
@@ -556,6 +511,13 @@
 		RE::FormID target = 0;
 		RE::FormID weapon = 0;   // 0: unarmed
 		bool       bash = false;
+		float      total = 0.0f;       // the hit's damage after armour (HitData totalDamage, before the call): log and fallback
+		float      totalAfter = 0.0f;  // the same field after the call, and physicalDamage: for the log (test 2026-11-23)
+		float      physical = 0.0f;    // the hit's damage before armour (HitData physicalDamage): the element's base
+		float      sneakMult = 1.0f;   // the sneak multiplier in it (1: not a sneak attack)
+		float      powerMult = 1.0f;   // a power attack's Damage Mult (1: not a power attack)
+		bool       power = false;
+		float      perkAtHit = 0.0f;  // the power perks' multiplier read before the hit was applied (0: not read)
 		std::uint32_t game = 0;  // g_hitGame when it landed: a hit from before a load is dropped
 	};
 	std::mutex             g_weaponHitLock;
@@ -614,35 +576,70 @@
 			if (!caster) {
 				continue;
 			}
-			const auto scale = WeaponHitScale(aggressor, hit.weapon ? RE::TESForm::LookupByID<RE::TESObjectWEAP>(hit.weapon) : nullptr, hit.bash);
-			if (element == kEarthy) {
-				const bool foe = HolyFoe(target);
-				const auto amount = EARTHY_HIT[foe ? 1 : 0][static_cast<std::size_t>(level - 1)] * scale;
-				if (auto spell = spells[12]) {
-					const auto mult = StrikePerkMult(aggressor, spell, target);
-					caster->CastSpellImmediate(spell, true, target, 1.0f, false, amount / mult, aggressor);
-					logger::info("Elements: {} by {:08X} on {:08X} (weapon {:08X}, x{:.2f}): Earthy {:.1f} holy damage ({}; perks x{:.2f} undone)", kind,
-						hit.aggressor, hit.target, hit.weapon, scale, amount, foe ? "unholy foe" : "anyone", mult);
+			// the hit's damage without its sneak and power attack multipliers (see the top of this file)
+			float base = (hit.physical > 0.0f ? hit.physical : hit.total) / hit.sneakMult;  // before armour (his call 2026-11-23)
+			float perk = 1.0f;
+			if (hit.power) {
+				if (hit.perkAtHit > 0.0f) {
+					perk = hit.perkAtHit;
+				} else {
+					// never reached since review 2026-11-24 R2-A: every accepted power hit carries the value read at the
+					// hit; this line is the log trap for it (no read after the hit: its perks may judge a changed target)
+					logger::info("Elements: power hit by {:08X} on {:08X} came without its perk value from the hit (no perk applied)", hit.aggressor, hit.target);
 				}
-			} else if (auto spell = spells[static_cast<std::size_t>((element - 1) * 4 + level - 1)]) {
-				const auto amount = ELEMENT_HIT[static_cast<std::size_t>(element - 1)][static_cast<std::size_t>(level - 1)] * scale;
-				const auto mult = StrikePerkMult(aggressor, spell, target);
-				caster->CastSpellImmediate(spell, false, target, 1.0f, false, amount / mult, aggressor);
-				logger::info("Elements: {} by {:08X} on {:08X} (weapon {:08X}, x{:.2f}): {} level {}, {:.1f} damage (perks x{:.2f} undone)", kind, hit.aggressor,
-					hit.target, hit.weapon, scale, ELEMENT_NAME[static_cast<std::size_t>(element)], level, amount, mult);
+				base /= hit.powerMult * perk;
 			}
+			if (base <= 0.0f) {
+				continue;  // a hit with no damage (a bash may carry none): no element
+			}
+			const bool foe = element == kEarthy && HolyFoe(target);
+			const auto& rates = foe ? HOLY_FOE_PCT : ELEMENT_PCT[static_cast<std::size_t>(element)];
+			const auto pct = rates[static_cast<std::size_t>(level - 1)];
+			const auto amount = base * pct / 100.0f;
+			auto spell = element == kEarthy ? spells[12] : spells[static_cast<std::size_t>((element - 1) * 4 + level - 1)];
+			if (!spell) {
+				continue;
+			}
+			const auto mult = StrikePerkMult(aggressor, spell, target);
+			caster->CastSpellImmediate(spell, element == kEarthy, target, 1.0f, false, amount / mult, aggressor);
+			logger::info("Elements: {} by {:08X} on {:08X} (weapon {:08X}): {} level {}{}, {:.1f}% of {:.1f} = {:.2f} damage (hit {:.1f}, after the call {:.1f}, physical {:.1f}, sneak x{:.2f}, power x{:.2f} x perks {:.2f}; strike perks x{:.2f} undone)",
+				kind, hit.aggressor, hit.target, hit.weapon, ELEMENT_NAME[static_cast<std::size_t>(element)], level, foe ? " (unholy foe)" : "", pct, base, amount,
+				hit.total, hit.totalAfter, hit.physical, hit.sneakMult, hit.power ? hit.powerMult : 1.0f, perk, mult);
 		}
 	}
 
-	// any thread (inside the game's hit handling): note the hit, nothing else
-	void WeaponHitCapture(RE::Actor* a_target, const RE::HitData& a_data)
+	// the aggressor of a hit, when it is the player or someone else with an element meal (else null)
+	RE::NiPointer<RE::Actor> ElementFighterOf(const RE::HitData& a_data, RE::Actor* a_target)
 	{
-		if (!a_target) {
-			return;  // every melee hit counts: weapons, fists and claws (weapon 0 or Unarmed), and bashes
-		}
 		auto aggressor = a_data.aggressor.get();
 		if (!aggressor || aggressor.get() == a_target) {
-			return;
+			return {};
+		}
+		const auto attacker = aggressor->GetFormID();
+		if (std::ranges::none_of(g_elementFighters, [attacker](const auto& a_id) { return a_id.load(std::memory_order_relaxed) == attacker; })) {
+			return {};
+		}
+		return aggressor;
+	}
+
+	// any thread (inside the game's hit handling, before the game applies the hit): a power attack's Mod Power Attack
+	// Damage multiplier for this fighter; 0 for any other hit (nothing read)
+	float PowerPerkAtHit(RE::Actor* a_fighter, RE::Actor* a_target, const RE::HitData& a_data)
+	{
+		if (!a_fighter || !a_target || a_data.flags.none(RE::HitData::Flag::kPowerAttack)) {
+			return 0.0f;
+		}
+		auto weapon = a_data.weapon && !a_data.weapon->IsHandToHandMelee() ? a_data.weapon : nullptr;  // as ApplyWeaponHits
+		return PowerPerkMult(a_fighter, weapon, a_target);
+	}
+
+	// any thread (inside the game's hit handling): note the hit, nothing else. a_fighter is the hook's one decision,
+	// taken before the game applied the hit, that the aggressor has an element meal (review 2026-11-24 R2-A: a second
+	// look at the fighter list here could see a refresh the first missed, and that hit then had no perk value)
+	void WeaponHitCapture(RE::Actor* a_target, const RE::HitData& a_data, float a_totalBefore, float a_perkAtHit, RE::Actor* a_fighter)
+	{
+		if (!a_target || !a_fighter) {
+			return;  // every melee hit counts: weapons, fists and claws (weapon 0 or Unarmed), and bashes
 		}
 		// only a weapon's hit (fists carry the Unarmed weapon 0x1F4) or a bash. Measured in game 2026-11-14 (a probe
 		// logged every field at this call): punches came with weapon 1F4, swords and bows with their weapon, bashes
@@ -652,18 +649,33 @@
 		if (!a_data.weapon && a_data.flags.none(RE::HitData::Flag::kBash, RE::HitData::Flag::kTimedBash)) {
 			return;
 		}
-		const auto attacker = aggressor->GetFormID();
-		if (std::ranges::none_of(g_elementFighters, [attacker](const auto& a_id) { return a_id.load(std::memory_order_relaxed) == attacker; })) {
-			return;  // nobody with an element meal: nothing to do (an actor who just ate is seen within 250 ms)
-		}
 		{
 			std::scoped_lock lock(g_weaponHitLock);
 			if (g_weaponHits.size() >= HOLY_QUEUE_MAX) {
 				return;
 			}
 			const bool unarmed = !a_data.weapon || a_data.weapon->IsHandToHandMelee();
-			g_weaponHits.push_back({ aggressor->GetFormID(), a_target->GetFormID(), unarmed ? 0 : a_data.weapon->GetFormID(),
-				a_data.flags.any(RE::HitData::Flag::kBash, RE::HitData::Flag::kTimedBash), g_hitGame.load() });
+			WeaponHit hit;
+			hit.aggressor = a_fighter->GetFormID();
+			hit.target = a_target->GetFormID();
+			hit.weapon = unarmed ? 0 : a_data.weapon->GetFormID();
+			hit.bash = a_data.flags.any(RE::HitData::Flag::kBash, RE::HitData::Flag::kTimedBash);
+			hit.game = g_hitGame.load();
+			hit.total = a_totalBefore;
+			hit.totalAfter = a_data.totalDamage;
+			hit.physical = a_data.physicalDamage;
+			// the sneak multiplier sits at +0x70 (CommonLib calls it bonusHealthDamageMult; the exe stores the sneak
+			// multiplier there and sets the sneak flag when it is above 1)
+			if (a_data.flags.any(RE::HitData::Flag::kSneakAttack) && a_data.bonusHealthDamageMult > 1.0f && a_data.bonusHealthDamageMult < 1000.0f) {
+				hit.sneakMult = a_data.bonusHealthDamageMult;
+			}
+			if (a_data.flags.any(RE::HitData::Flag::kPowerAttack) && a_data.attackData) {
+				const auto dm = a_data.attackData->data.damageMult;
+				hit.power = true;
+				hit.powerMult = dm > 0.01f && dm < 100.0f ? dm : 1.0f;
+				hit.perkAtHit = a_perkAtHit;
+			}
+			g_weaponHits.push_back(hit);
 		}
 		if (!g_weaponTaskQueued.exchange(true)) {
 			SKSE::GetTaskInterface()->AddTask([]() { ApplyWeaponHits(); });  // one shared task for every hit waiting
@@ -675,8 +687,14 @@
 	{
 		static void thunk(RE::AIProcess* a_targetProcess, RE::HitData& a_data)
 		{
+			const float before = a_data.totalDamage;  // the damage as Populate left it (the call may change it)
+			auto        target = a_targetProcess ? a_targetProcess->GetUserData() : nullptr;
+			// one decision before the call applies the hit: is the aggressor a fighter with an element meal (an actor
+			// who just ate is seen within 250 ms), and its power attack perks (review 2026-11-24a R2, R2-A)
+			const auto  fighter = target ? ElementFighterOf(a_data, target) : RE::NiPointer<RE::Actor>{};
+			const float perk = PowerPerkAtHit(fighter.get(), target, a_data);
 			func(a_targetProcess, a_data);
-			WeaponHitCapture(a_targetProcess ? a_targetProcess->GetUserData() : nullptr, a_data);
+			WeaponHitCapture(target, a_data, before, perk, fighter.get());
 		}
 		static inline REL::Relocation<decltype(thunk)> func;
 	};

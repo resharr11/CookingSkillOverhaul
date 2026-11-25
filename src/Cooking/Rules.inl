@@ -16,7 +16,7 @@
 	constexpr RE::FormID PERK_TASTE = 0x862;            // Cook (root): the pot shows stars, level and duration; meals last half again as long
 	constexpr RE::FormID PERK_CURIOUS = 0x854;          // Gourmand: tastes ingredients as they go in
 	constexpr RE::FormID PERK_LONG_SIMMER = 0x85D;      // Long Simmer: no drink or garlic needed
-	constexpr RE::FormID PERK_HOUSE_RECIPE = 0x85A;     // House Recipe: a perfect dish is worth half again as much
+	constexpr RE::FormID PERK_HOUSE_RECIPE = 0x85A;     // House Recipe: every dish and drink is worth half again as much
 	constexpr RE::FormID PERK_DRAGONFEAST = 0x85E;      // Dragonfeast: Dragon Bone meals and Dragon Scales drinks
 	constexpr RE::FormID PERK_COOKBOOK = 0x854;         // Gourmand: eating a dish you never cooked teaches its recipe
 	constexpr const char* PLUGIN = "FreeCooking.esp";
@@ -393,6 +393,244 @@
 		return Lower(plugin + "_" + std::to_string(local));
 	}
 
+	// The unholy, as Earthy defines them: one list for both readers, the holy strike (HolyDamage.inl HolyFoe, which also
+	// counts the raised dead by their reanimate effect) and the potion rule below. Keywords ActorTypeUndead,
+	// ActorTypeDaedra, Vampire, ActorTypeGhost; race WerewolfBeastRace.
+	constexpr std::array<RE::FormID, 4> UNHOLY_KEYWORDS{ 0x13796, 0x13797, 0xA82BB, 0xD205E };
+	constexpr RE::FormID                WEREWOLF_BEAST_RACE = 0xCDD84;
+
+	// A yes/no condition asked as "is one": == 1, != 0, > 0 or >= 1 against a number, not a global. The two perk condition
+	// readers below (the unholy target, the spell's school) both count only these.
+	bool IsOneTest(const RE::CONDITION_ITEM_DATA& a_c)
+	{
+		using Op = RE::CONDITION_ITEM_DATA::OpCode;
+		if (a_c.flags.global) {
+			return false;
+		}
+		const float v = a_c.comparisonValue.f;
+		const Op    op = a_c.flags.opCode;
+		return (op == Op::kEqualTo && std::abs(v - 1.0f) < 0.001f) || (op == Op::kNotEqualTo && std::abs(v) < 0.001f) ||
+		       (op == Op::kGreaterThan && std::abs(v) < 0.001f) || (op == Op::kGreaterThanOrEqualTo && std::abs(v - 1.0f) < 0.001f);
+	}
+
+	// A condition that is true only for an unholy target (Earthy's list above, or the IsUndead check), "is one" tests only.
+	bool IsUnholyTargetTest(const RE::CONDITION_ITEM_DATA& a_c)
+	{
+		using Fn = RE::FUNCTION_DATA::FunctionID;
+		if (!IsOneTest(a_c)) {
+			return false;
+		}
+		const auto fn = a_c.functionData.function.get();
+		if (fn == Fn::kIsUndead) {
+			return true;
+		}
+		const auto* form = static_cast<const RE::TESForm*>(a_c.functionData.params[0]);
+		if (!form) {
+			return false;
+		}
+		if (fn == Fn::kHasKeyword) {
+			return std::ranges::find(UNHOLY_KEYWORDS, form->GetFormID()) != UNHOLY_KEYWORDS.end();
+		}
+		if (fn == Fn::kGetIsRace) {
+			return form->GetFormID() == WEREWOLF_BEAST_RACE;
+		}
+		return false;
+	}
+
+	// The school a spell condition names: EPMagic_SpellHasSkill asked as "is one". Its parameter is the skill's actor value
+	// number, kept as a number in the parameter slot (not a form; other CommonLib plugins read it the same way, e.g.
+	// SimpleTrainingOverhaul's VoidCaster<ActorValue>). Returns -1 when the condition names no school.
+	std::int32_t SpellSchoolTest(const RE::CONDITION_ITEM_DATA& a_c)
+	{
+		if (a_c.functionData.function.get() != RE::FUNCTION_DATA::FunctionID::kEPMagic_SpellHasSkill || !IsOneTest(a_c)) {
+			return -1;
+		}
+		return static_cast<std::int32_t>(reinterpret_cast<std::uintptr_t>(a_c.functionData.params[0]));
+	}
+
+	std::string ValueFlavour(std::int32_t a_av);  // the one flavour table for actor values (below EffectFlavour)
+
+	// The element a damage keyword names (his call 2026-11-23: "make effects that add fire damage spicy, frost damage chilly,
+	// and shock damage zesty"): vanilla's MagicDamageFire / MagicDamageFrost / MagicDamageShock. Empty: not one of them.
+	std::string ElementOfKeyword(const RE::TESForm* a_form)
+	{
+		if (!a_form) {
+			return {};
+		}
+		switch (a_form->GetFormID()) {
+		case 0x1CEAD: return "Spicy";
+		case 0x1CEAE: return "Chilly";
+		case 0x1CEAF: return "Zesty";
+		default:      return {};
+		}
+	}
+
+	// What SpellElement returns for a spell whose harmful effects carry two different elements (Codex review 2026-11-24a
+	// R3: "no element" and "two elements" were both empty, so a perk's other, single-element entry won the clash).
+	constexpr const char* SPELL_MIXED = "mixed";
+
+	// The element of a spell a perk casts on hits (Apply Combat Hit Spell and the like): the elements its harmful effects
+	// carry, when they all agree. Empty: no element damage; SPELL_MIXED: two different elements.
+	std::string SpellElement(const RE::SpellItem* a_spell)
+	{
+		if (!a_spell) {
+			return {};
+		}
+		std::string found;
+		for (const auto* effect : a_spell->effects) {
+			const auto* base = effect ? effect->baseEffect : nullptr;
+			if (!base || !base->IsHostile()) {
+				continue;
+			}
+			for (std::uint32_t k = 0; k < base->numKeywords; ++k) {
+				const auto e = ElementOfKeyword(base->keywords ? base->keywords[k] : nullptr);
+				if (e.empty()) {
+					continue;
+				}
+				if (found.empty()) {
+					found = e;
+				} else if (found != e) {
+					return SPELL_MIXED;
+				}
+			}
+		}
+		return found;
+	}
+
+	// What PerkDamageFlavour returns when a perk's elements clash and nothing else decides: no flavour for the effect.
+	constexpr const char* PERK_CLASH = "-";
+
+	// true when one of an entry's conditions is an unholy test asked of the target (see PerkDamageFlavour)
+	bool HasUnholyTargetTest(const RE::BGSEntryPointPerkEntry* a_ep)
+	{
+		for (std::size_t tab = 0; tab < a_ep->conditions.size(); ++tab) {
+			for (const auto* item = a_ep->conditions[tab].head; item; item = item->next) {
+				const bool onTarget = tab >= 1 || item->data.object.get() == RE::CONDITIONITEMOBJECT::kCombatTarget;
+				if (onTarget && IsUnholyTargetTest(item->data)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	// A damage effect done by a perk (his calls 2026-11-23: "make any effect that increases damage to unholy earthy", then
+	// "we probably need a rule for non unholy potions", proposal approved): the effect's perk has an entry that raises
+	// weapon damage (Calculate Weapon Damage, Mod Attack Damage, Mod Power Attack Damage: vanilla's silver and Dawnguard
+	// bonuses use the first) or spell damage (Mod Spell Magnitude), multiply above 1 or add above 0.
+	// Against the unholy (a condition that only the unholy pass, asked of the target: any tab after the perk owner's, or a
+	// perk-owner condition run on the combat target; review 2026-11-23 L3/N1: vanilla's own perks never use "run on" in
+	// perk tabs, and "Target" has no defined meaning there, so only the defined Combat Target counts): Earthy.
+	// Against anyone else: Mighty for weapons; for spells the school decides as it does for a plain effect (his rule
+	// 2026-11-23 "consistent design should dictate our actions", Claude review L1): a spell condition naming a school gives
+	// that school's flavour from the value table (Alteration Hearty, the other four Brainy); no school, or schools whose
+	// flavours differ, Brainy (review 2026-11-23 N3: the result never depends on condition order). A named skill with no
+	// flavour (a non-magic skill) counts as naming no school (review 2026-11-23c C1/R1, his call "do the proposal").
+	// Elements (his call 2026-11-23, "make effects that add fire damage spicy, frost damage chilly, and shock damage
+	// zesty"): a spell-strength entry whose spell condition names a damage keyword (EPMagic_SpellHasKeyword
+	// MagicDamageFire / Frost / Shock, as Augmented Flames does), and a perk that casts a spell on hits (Apply Combat Hit,
+	// Bashing or Weapon Swing Spell) whose harmful effects carry one of those keywords, give that element: Spicy, Chilly,
+	// Zesty. An element comes before a school or Mighty; the unholy still come first; two different elements in one perk
+	// cancel out (the school or Mighty rule then decides).
+	// A hit spell asked of an unholy target (any tab after the perk owner's, or a perk-owner condition run on the combat
+	// target) gives Earthy like a damage entry does (Claude review 2026-11-24 Q6, his "yes": the unholy come first).
+	// Two different elements with no damage entry to fall back on clash (Claude review 2026-11-24 Q5, his call "twin
+	// elements make no sense to become mighty" then "yes" to the clash rule): the effect gets no flavour at all, like a pot
+	// with two flavours, instead of being read by its value (PERK_CLASH above).
+	// Empty: the perk raises no damage; PERK_CLASH: its elements clash. Only one-number entries are read (Claude review L2).
+	// The perk decides before the effect's value: the game turns a value effect that names no value into Health (probe
+	// 2026-11-23), which would read as Hearty.
+	std::string PerkDamageFlavour(const RE::BGSPerk* a_perk)
+	{
+		if (!a_perk) {
+			return {};
+		}
+		using EP = RE::BGSEntryPoint::ENTRY_POINTS;
+		using Fn = RE::BGSEntryPointFunction::ENTRY_POINT_FUNCTION;
+		std::string other;  // the flavour of the first damage entry that is not against the unholy
+		std::string element;          // the element the damage entries name, when they agree
+		bool        elementsDiffer = false;
+		const auto  noteElement = [&](const std::string& a_e) {
+			if (a_e.empty()) {
+				return;
+			}
+			if (a_e == SPELL_MIXED) {
+				elementsDiffer = true;  // one spell with two elements clashes like two entries with different elements
+				return;
+			}
+			if (element.empty()) {
+				element = a_e;
+			} else if (element != a_e) {
+				elementsDiffer = true;
+			}
+		};
+		for (const auto* entry : a_perk->perkEntries) {
+			if (!entry || entry->GetType() != RE::PERK_ENTRY_TYPE::kEntryPoint) {
+				continue;
+			}
+			const auto* ep = static_cast<const RE::BGSEntryPointPerkEntry*>(entry);
+			const auto  point = ep->entryData.entryPoint.get();
+			if (point == EP::kApplyCombatHitSpell || point == EP::kApplyBashingSpell || point == EP::kApplyWeaponSwingSpell) {
+				// a spell cast on hits: its element, if it does element damage; against the unholy: Earthy
+				if (ep->functionData && ep->functionData->GetType() == RE::BGSEntryPointFunctionData::ENTRY_POINT_FUNCTION_DATA::kSpellItem) {
+					const auto e = SpellElement(static_cast<const RE::BGSEntryPointFunctionDataSpellItem*>(ep->functionData)->spell);
+					if (!e.empty() && HasUnholyTargetTest(ep)) {
+						return "Earthy";  // the unholy win over any other entry of the same perk
+					}
+					noteElement(e);
+				}
+				continue;
+			}
+			const bool weapon = point == EP::kCalculateWeaponDamage || point == EP::kModAttackDamage || point == EP::kModPowerAttackDamage;
+			if (!weapon && point != EP::kModSpellMagnitude) {
+				continue;
+			}
+			const auto fn = ep->entryData.function.get();
+			if ((fn != Fn::kMultiplyValue && fn != Fn::kAddValue) || !ep->functionData ||
+				ep->functionData->GetType() != RE::BGSEntryPointFunctionData::ENTRY_POINT_FUNCTION_DATA::kOneValue) {
+				continue;
+			}
+			const float value = static_cast<const RE::BGSEntryPointFunctionDataOneValue*>(ep->functionData)->data;
+			if (fn == Fn::kMultiplyValue ? value <= 1.0f : value <= 0.0f) {
+				continue;
+			}
+			std::string bySchool;        // the flavour every named school agrees on
+			bool        schoolsDiffer = false;
+			for (std::size_t tab = 0; tab < ep->conditions.size(); ++tab) {
+				for (const auto* item = ep->conditions[tab].head; item; item = item->next) {
+					const bool onTarget = tab >= 1 || item->data.object.get() == RE::CONDITIONITEMOBJECT::kCombatTarget;
+					if (onTarget && IsUnholyTargetTest(item->data)) {
+						return "Earthy";  // the unholy win over any other damage entry of the same perk
+					}
+					if (!weapon && item->data.functionData.function.get() == RE::FUNCTION_DATA::FunctionID::kEPMagic_SpellHasKeyword && IsOneTest(item->data)) {
+						noteElement(ElementOfKeyword(static_cast<const RE::TESForm*>(item->data.functionData.params[0])));
+					}
+					if (const auto school = SpellSchoolTest(item->data); school >= 0) {
+						const auto f = ValueFlavour(school);
+						if (f.empty()) {
+							// not a school with a flavour: ignored
+						} else if (bySchool.empty()) {
+							bySchool = f;
+						} else if (f != bySchool) {
+							schoolsDiffer = true;
+						}
+					}
+				}
+			}
+			if (other.empty()) {
+				if (weapon) {
+					other = "Mighty";
+				} else {
+					other = bySchool.empty() || schoolsDiffer ? "Brainy" : bySchool;
+				}
+			}
+		}
+		if (!element.empty() && !elementsDiffer) {
+			return element;  // never SPELL_MIXED: noteElement keeps it out of element
+		}
+		return elementsDiffer && other.empty() ? PERK_CLASH : other;
+	}
+
 	// What one potion effect does for the pot, judged by the value it changes, not by its form ID (2026-11-22, his rule
 	// "d"): alchemy mods reuse vanilla effect IDs for other jobs (Apothecary's Fortify Heavy Armor became Fortify
 	// Shouts; CACO's Fortify One-handed raises the skill itself), so an ID says nothing about what a potion does now.
@@ -404,10 +642,14 @@
 	// unarmed damage Mighty, Resist Disease Earthy.
 	// Value Modifier and Peak Value Modifier effects change one value and are judged by it; of the other kinds only
 	// Invisibility (Sneaky) and the two cures (Earthy, like the resists) have a flavour (his OK 2026-11-22 19:14).
+	// Any kind: an effect whose perk raises weapon or spell damage is judged by that first (PerkDamageFlavour, 2026-11-23).
 	std::string EffectFlavour(const RE::EffectSetting* a_effect)
 	{
 		using Arch = RE::EffectSetting::Archetype;
 		const auto arch = a_effect->GetArchetype();
+		if (auto byPerk = PerkDamageFlavour(a_effect->data.perk); !byPerk.empty()) {
+			return byPerk == PERK_CLASH ? std::string{} : byPerk;  // clashing elements: no flavour, not the effect's value
+		}
 		if (arch == Arch::kInvisibility) {
 			return "Sneaky";
 		}
@@ -417,7 +659,14 @@
 		if (arch != Arch::kValueModifier && arch != Arch::kPeakValueModifier) {
 			return {};
 		}
-		switch (static_cast<std::int32_t>(std::to_underlying(a_effect->data.primaryAV))) {
+		return ValueFlavour(static_cast<std::int32_t>(std::to_underlying(a_effect->data.primaryAV)));
+	}
+
+	// The flavour of one actor value: vanilla's table plus his choices (see EffectFlavour above); also read for the
+	// school a spell-strength perk names (PerkDamageFlavour), so a perk and a plain effect of the same school agree.
+	std::string ValueFlavour(std::int32_t a_av)
+	{
+		switch (a_av) {
 		case 135:  // one-handed damage (vanilla Fortify One-handed)
 		case 136:  // two-handed damage
 		case 137:  // archery damage
@@ -859,12 +1108,12 @@
 	};
 
 	// the value the cooked dish will have, worked out as FC_Core.Cook does: the ingredients plus 10%, half again for a
-	// house recipe (a perfect dish with the House Recipe perk; never a dragon dish), then rounded to a coarse step so
+	// House Recipe perk (every dish and drink since 2026-11-23; before, only a perfect dish), then rounded to a coarse step so
 	// similar pots share one saved dish. A critical cook does not change the value.
 	std::int32_t DishValue(const Result& a_r)
 	{
 		std::int32_t value = (a_r.gold * 11 + 9) / 10;
-		if (a_r.level > 0 && !a_r.dragon && a_r.total >= 7 && HasTreePerk(PERK_HOUSE_RECIPE)) {
+		if (HasTreePerk(PERK_HOUSE_RECIPE)) {
 			value = (value * 3 + 1) / 2;
 		}
 		const std::int32_t step = value >= 200 ? 25 : value >= 50 ? 10 : value >= 20 ? 5 : 1;
@@ -908,7 +1157,8 @@
 	{
 		std::int32_t              dish{ -1 };
 		std::vector<std::int32_t> entries;           // the pot entries filling the recipe's slots, in slot order
-		bool                      needAlc{ false };  // an insect egg in an egg slot stays gross: it needs its drink
+		bool                      needAlc{ false };     // a recipe ingredient is unappetizing: it needs an alcoholic drink
+		bool                      needGarlic{ false };  // a recipe ingredient is poisonous: it needs Garlic (or an Earthy potion)
 	};
 
 	bool InKeySet(const std::string& a_set, const std::string& a_key)
@@ -924,6 +1174,73 @@
 	// from goat; reviews 2026-11-15)
 	std::unordered_map<std::int32_t, std::string> g_lastMain;  // the screen's preview
 	std::unordered_map<std::int32_t, std::string> g_cookMain;  // the cook (FC_Menu.ChooseDish, then FC_Menu.DishName)
+	// which look the dish takes, per dish: a mod's model ("lk.<dish>.<i>", Cooking/Patcher.inl) or -1 for the dish's own,
+	// for the cook (DishPool.inl PapyrusMakeDish) and for the screen's preview (its turning 3D picture)
+	std::unordered_map<std::int32_t, std::int32_t> g_cookLook;
+	std::unordered_map<std::int32_t, std::int32_t> g_lastLook;
+	// drinks named after what is in them ("dish.N.dk"; DrinkName below): the whole unseasoned name, per dish, kept apart
+	// for the preview and the cook the same way (under g_mainLock)
+	std::unordered_map<std::int32_t, std::string> g_lastDrink;
+	std::unordered_map<std::int32_t, std::string> g_cookDrink;
+	// The recipe the player last picked from the Recipes list (-1: none): when several dishes' recipes fit the pot equally
+	// (an author's different models with the same ingredients), the pot makes this one (his call 2026-11-24). Set by the
+	// cooking screen, cleared when it opens.
+	std::atomic<std::int32_t> g_preferDish{ -1 };
+
+	// The look of a dish our rules make (his rules 2026-11-24): the recipe is always ours; the model can be a food mod's.
+	// A mod dish of the same kind as ours, with its main ingredient in our dish's first slot ("lk.<dish>.<i>": plugin
+	// "p", form "id", its main ingredient's keys "m", its mod's recipe "v"; Cooking/Patcher.inl), is a look of that dish.
+	// It shows when the pot's main ingredient (a_main, the first slot's item) is its main ingredient, even when the pot is
+	// our dish's own recipe ("if someone downloads a mod and make a boar dish they will expect see the dish of the
+	// downloaded mod"); any other main ingredient keeps the dish's own look. Several mods' looks for one ingredient: the
+	// one made for the fewest main ingredients first (a carrot soup's model beats an "any vegetable" soup's on a carrot
+	// soup, as a named slot beats an "any" slot), then the one whose original recipe the pot matches best, then the one
+	// read first. -1: the dish's own look
+	std::int32_t ChooseLook(std::int32_t a_dish, const std::vector<std::string>& a_keys, const std::string& a_main)
+	{
+		const auto count = Int(std::format("lk.{}.n", a_dish));
+		if (count <= 0 || a_main.empty()) return -1;
+		const auto overlap = [&](const std::string& a_set) {
+			std::set<std::string> seen;
+			for (const auto& k : a_keys) {
+				if (InKeySet(a_set, k)) seen.insert(k);
+			}
+			return static_cast<std::int32_t>(seen.size());
+		};
+		std::int32_t best = -1;
+		std::pair<std::int32_t, std::int32_t> bestScore{};
+		for (std::int32_t i = 0; i < count; ++i) {
+			const auto mains = Str(std::format("lk.{}.{}.m", a_dish, i));
+			if (!InKeySet(mains, a_main)) continue;
+			std::int32_t made = 0;  // how many main ingredients its model was made for
+			for (std::size_t c = 1; c < mains.size(); ++c) made += (mains[c] == '|' && mains[c - 1] != '|') ? 1 : 0;  // "|a|b|": 2
+			const std::pair<std::int32_t, std::int32_t> score{ -made, overlap(Str(std::format("lk.{}.{}.v", a_dish, i))) };
+			if (best < 0 || score > bestScore) {
+				best = i;
+				bestScore = score;
+			}
+		}
+		return best;
+	}
+
+	// the form a dish looks like: the look ChooseLook picked for the cook (a_cook) or the screen's preview; else the dish's
+	// own (nullptr with a_modOnly)
+	RE::TESForm* DishLookForm(std::int32_t a_dish, bool a_cook, bool a_modOnly = false)
+	{
+		std::int32_t look = -1;
+		{
+			std::scoped_lock lock(g_mainLock);
+			const auto& looks = a_cook ? g_cookLook : g_lastLook;
+			if (const auto it = looks.find(a_dish); it != looks.end()) look = it->second;
+		}
+		if (look >= 0) {
+			const auto plugin = Str(std::format("lk.{}.{}.p", a_dish, look));
+			if (auto form = plugin.empty() ? nullptr : PluginForm(static_cast<RE::FormID>(Int(std::format("lk.{}.{}.id", a_dish, look))), plugin)) return form;
+		}
+		if (a_modOnly) return nullptr;
+		const auto plugin = Str(std::format("dish.{}.p", a_dish));
+		return plugin.empty() ? nullptr : PluginForm(static_cast<RE::FormID>(Int(std::format("dish.{}.id", a_dish))), plugin);
+	}
 
 	// a dish's name as cooked: the general word replaced by the main ingredient, and the flavour in front when given
 	// ("Mighty Catfish Pie"); every other dish as the rules have it ("dishc.N.<flavour>" when seasoned)
@@ -935,6 +1252,19 @@
 		// ("{0} {1}"), so a translation never shows half English.
 		std::string flavour = a_flavour;
 		if (!flavour.empty()) flavour[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(flavour[0])));
+		if (Int(std::format("dish.{}.dk", a_dish)) != 0) {
+			// a drink named after what is in it ("Juniper Mead", "Shein"): the name the last choice put together, already
+			// translated; without one (a recipe card with no pot behind it) the recipe's own name
+			std::string name;
+			{
+				std::scoped_lock lock(g_mainLock);
+				const auto& drinks = a_cook ? g_cookDrink : g_lastDrink;
+				if (const auto it = drinks.find(a_dish); it != drinks.end()) name = it->second;
+			}
+			if (name.empty()) name = FC::Tr(Str(std::format("dish.{}.n", a_dish)).c_str());
+			if (flavour.empty()) return name;
+			return FC::TrF("{0} {1}", FC::Tr(flavour.c_str()), name);
+		}
 		const auto general = Str(std::format("dish.{}.gw", a_dish));
 		if (general.empty()) {
 			if (flavour.empty()) return FC::Tr(Str(std::format("dish.{}.n", a_dish)).c_str());
@@ -955,6 +1285,92 @@
 		}
 		if (flavour.empty()) return name;
 		return FC::TrF("{0} {1}", FC::Tr(flavour.c_str()), name);  // "Spicy Venison Stew", in the player's language's order
+	}
+
+	// An ingredient's short name in a drink's name: our own list first ("Juniper Berries" -> "Juniper", both apples ->
+	// "Apple"; a translation line each), then the patcher's short form of the game's name (food mods' ingredients), then
+	// nothing (the drink keeps its plain name)
+	std::string DrinkShort(const std::string& a_key)
+	{
+		if (const auto own = Str("dsn." + a_key); !own.empty()) return FC::Tr(own.c_str());
+		return Str("ish." + a_key);
+	}
+
+	// A drink's name from the items that filled its recipe, in slot order (his calls 2026-11-24, after the drink-naming
+	// research: the base decides the drink, "[ingredient] [drink]" as the lore and real drinks are named).
+	// dk 1, ale, mead, tea and juice: "<addition> <base>": "Juniper Mead", "Snowberry Ale", "Lavender Tea"; the base word is
+	// the recipe's ("db") unless the item in slot "dbs" has its own (Saltrice: "Matze").
+	// dk 2, wine: named by its fruits, never by their order: a fruit there twice gives the wine (Jazbay "Wine", Comberry
+	// "Shein", apples "Cider", others "Snowberry Wine"); two different fruits "Fruit Wine", or "Berry Wine" when both are
+	// berries (US labelling, 27 CFR 4.21); the one ingredient that isn't the base fruit goes in front ("Lavender Shein").
+	// Every pattern is a line of its own in the translation file ("{0} Mead", "{0} Shein"...), so translators can order it.
+	std::string DrinkName(std::int32_t a_dish, const std::vector<std::string>& a_slotKeys)
+	{
+		const auto kind = Int(std::format("dish.{}.dk", a_dish));
+		const auto count = static_cast<std::int32_t>(a_slotKeys.size());
+		if (kind == 1) {
+			std::string base = Str(std::format("dish.{}.db", a_dish));
+			const auto dbs = Int(std::format("dish.{}.dbs", a_dish));
+			if (dbs >= 0 && dbs < count) {
+				if (const auto own = Str("dbn." + a_slotKeys[dbs]); !own.empty()) base = own;
+			}
+			const auto da = Int(std::format("dish.{}.da", a_dish));
+			const std::string add = da >= 0 && da < count ? DrinkShort(a_slotKeys[da]) : std::string();
+			if (base.empty()) return {};
+			if (add.empty()) return FC::Tr(base.c_str());
+			const std::string pattern = "{0} " + base;
+			return FC::TrF(pattern.c_str(), add);
+		}
+		if (kind != 2 || count == 0) return {};
+		// the fruits are the items of the first slot's kind; each counted by its short name (both apples are one fruit)
+		const auto fruitSet = Str(std::format("dish.{}.s0", a_dish));
+		std::vector<std::pair<std::string, std::string>> fruits;  // (type, key)
+		std::string other;                                        // the key of the one ingredient that isn't a fruit
+		for (const auto& k : a_slotKeys) {
+			if (InKeySet(fruitSet, k)) {
+				const auto s = DrinkShort(k);
+				fruits.emplace_back(s.empty() ? k : s, k);
+			} else {
+				other = k;
+			}
+		}
+		std::string baseKey;
+		for (std::size_t i = 0; i < fruits.size() && baseKey.empty(); ++i) {
+			for (std::size_t j = i + 1; j < fruits.size(); ++j) {
+				if (fruits[i].first == fruits[j].first) {
+					baseKey = fruits[i].second;
+					break;
+				}
+			}
+		}
+		std::string prefix;  // the key named in front
+		std::string base;    // English pattern of the wine's own name, {0} its fruit
+		std::string fruit;
+		if (!baseKey.empty()) {
+			const auto baseType = DrinkShort(baseKey).empty() ? baseKey : DrinkShort(baseKey);
+			for (const auto& [type, key] : fruits) {
+				if (type != baseType) prefix = key;
+			}
+			if (prefix.empty()) prefix = other;
+			if (const auto own = Str("wn." + baseKey); !own.empty()) {
+				base = own;
+			} else if (fruit = DrinkShort(baseKey); !fruit.empty()) {
+				base = "{0} Wine";
+			} else {
+				base = "Fruit Wine";
+			}
+		} else {
+			const bool berries = !fruits.empty() && std::ranges::all_of(fruits, [](const auto& a_f) { return Int("ber." + a_f.second) == 1; });
+			base = berries ? "Berry Wine" : "Fruit Wine";
+			prefix = other;  // three different fruits: no prefix
+		}
+		const std::string add = prefix.empty() ? std::string() : DrinkShort(prefix);
+		if (base == "{0} Wine") {
+			return add.empty() ? FC::TrF("{0} Wine", fruit) : FC::TrF("{0} {1} Wine", add, fruit);
+		}
+		if (add.empty()) return FC::Tr(base.c_str());
+		const std::string pattern = "{0} " + base;
+		return FC::TrF(pattern.c_str(), add);
 	}
 
 	// the patcher's coverage check: can any dish allowed at this place be filled from a_keys, using entry a_mustUse and at
@@ -986,20 +1402,26 @@
 	// a_only >= 0: only that dish is tried (the cooking screen's recipe shortcut asks "can these make this dish?")
 	// a_quiet: a check only (the recipe shortcut, the card): the preview's main ingredient (g_lastMain) is left as it is
 	// (Claude review 2026-11-16g, L6)
-	Choice ChooseDish(const std::vector<std::string>& a_keys, bool a_longSimmer, bool a_cook = false, std::int32_t a_only = -1, bool a_quiet = false)
+	// a_prefer: the dish that wins a tie (-2: the player's pick, g_preferDish)
+	Choice ChooseDish(const std::vector<std::string>& a_keys, bool a_longSimmer, bool a_cook = false, std::int32_t a_only = -1, bool a_quiet = false, std::int32_t a_prefer = -2)
 	{
+		const std::int32_t prefer = a_prefer == -2 ? g_preferDish.load() : a_prefer;
 		Choice best;
 		std::array<std::int32_t, 4> bestScore{};
 		const auto cnt = a_keys.size();
 		// what an entry gives up when it fills a slot: a flavour is worth more as a seasoning, then its stars
 		std::vector<std::int32_t> cost(cnt, 0);
-		std::vector<bool> gross(cnt, false);
+		std::vector<bool> gross(cnt, false);      // needs an alcoholic drink (unappetizing)
+		std::vector<bool> poisonous(cnt, false);  // needs Garlic or an Earthy potion
 		std::vector<bool> alcohol(cnt, false);
+		std::vector<bool> garlicHelp(cnt, false);
 		for (std::size_t i = 0; i < cnt; ++i) {
 			const auto& k = a_keys[i];
 			cost[i] = (Str("ic." + k).empty() ? 0 : 100) + Int("is." + k) * 10 + (Int("ia." + k) == 1 ? 5 : 0);
 			gross[i] = Str("iq." + k) == "alc";
+			poisonous[i] = Str("iq." + k) == "garlic";
 			alcohol[i] = Int("ia." + k) == 1;
+			garlicHelp[i] = Int("ig." + k) == 1;
 		}
 		// (a_only: that dish alone, not a walk past every other one; the recipe shortcut asks often; review 2026-11-16f, L3)
 		for (std::int32_t d = (std::max)(a_only, 0); (a_only < 0 || d == a_only) && g_str.contains(Lower(std::format("dish.{}.n", d))); ++d) {
@@ -1015,37 +1437,53 @@
 				continue;  // Herbal Tea with a sweetener, grain or fruit; Fruit Juice with a sweetener; mead with fruit
 			}
 			std::array<std::string, 3> slot;
-			std::array<bool, 3> grossSlot{};  // an egg slot: the insect eggs in it still need their drink
 			for (std::int32_t j = 0; j < ns; ++j) {
 				slot[j] = Str(std::format("dish.{}.s{}", d, j));
-				grossSlot[j] = Int(std::format("dish.{}.gr{}", d, j)) == 1;
 			}
+			// A recipe ingredient keeps the helper it needs as a seasoning (the design's "a gross recipe ingredient needs
+			// its enabler", his call 2026-11-24 "a dish made only of poison or gross should need an enabler" and "every
+			// slot"): unappetizing -> an alcoholic drink, poisonous -> Garlic or an Earthy potion, each a pot entry of its
+			// own. Long Simmer removes both; mead, ale and wine are alcoholic themselves (no drink); a dish marked "nh" needs
+			// none (Charred Skeever Meat, his exception). Until 2026-11-24 only egg slots ("gr") asked for the drink.
+			const bool helperFree = a_longSimmer || Int(std::format("dish.{}.nh", d)) == 1;
+			const bool brewed = Int(std::format("dish.{}.fe", d)) == 1;
 			const bool different = Int(std::format("dish.{}.dif", d)) == 1;  // Vegetable Soup, Wine: different items
 			// every way to give each slot its own entry (at most three slots): keep the cheapest
 			std::array<std::int32_t, 3> pick{ -1, -1, -1 };
 			std::array<std::int32_t, 3> found{ -1, -1, -1 };
 			std::int32_t foundCost = (std::numeric_limits<std::int32_t>::max)();
 			bool foundGross = false;
+			bool foundPoison = false;
 			const std::function<void(std::int32_t, std::int32_t)> fill = [&](std::int32_t a_j, std::int32_t a_cost) {
 				if (a_j == ns) {
 					bool grossUsed = false;
-					for (std::int32_t j = 0; j < ns; ++j) {
-						grossUsed = grossUsed || (grossSlot[j] && gross[pick[j]]);
+					bool poisonUsed = false;
+					for (std::int32_t j = 0; j < ns && !helperFree; ++j) {
+						grossUsed = grossUsed || (gross[pick[j]] && !brewed);
+						poisonUsed = poisonUsed || poisonous[pick[j]];
 					}
-					if (grossUsed && !a_longSimmer) {
-						// an insect egg in its slot still needs a drink that is not part of the recipe
-						bool drink = false;
-						for (std::size_t e = 0; e < cnt && !drink; ++e) {
-							drink = alcohol[e] && std::ranges::find(pick, static_cast<std::int32_t>(e)) == pick.end();
+					// the helpers are pot entries outside the recipe, one each (a drink and Garlic: two entries)
+					const auto outside = [&](const std::vector<bool>& a_kind, std::int32_t a_not) {
+						for (std::size_t e = 0; e < cnt; ++e) {
+							const auto ei = static_cast<std::int32_t>(e);
+							if (a_kind[e] && ei != a_not && std::ranges::find(pick, ei) == pick.end()) {
+								return ei;
+							}
 						}
-						if (!drink) {
-							return;
-						}
+						return -1;
+					};
+					const auto drinkAt = grossUsed ? outside(alcohol, -1) : -1;
+					if (grossUsed && drinkAt < 0) {
+						return;
+					}
+					if (poisonUsed && outside(garlicHelp, drinkAt) < 0) {
+						return;
 					}
 					if (a_cost < foundCost) {
 						foundCost = a_cost;
 						found = pick;
-						foundGross = grossUsed && !a_longSimmer;
+						foundGross = grossUsed;
+						foundPoison = poisonUsed;
 					}
 					return;
 				}
@@ -1081,16 +1519,33 @@
 				}
 			}
 			const std::array<std::int32_t, 4> score{ -Int(std::format("dish.{}.pr", d)), ns, named, vanilla };
-			if (best.dish < 0 || score > bestScore) {  // equal: the dish listed first stays
+			if (best.dish < 0 || score > bestScore || (score == bestScore && d == prefer)) {  // equal: the dish listed first stays, unless the player picked this one
 				best.dish = d;
 				best.entries.assign(found.begin(), found.begin() + ns);
 				best.needAlc = foundGross;
+				best.needGarlic = foundPoison;
 				bestScore = score;
 			}
 		}
+		if (a_only < 0 && !a_quiet && best.dish >= 0) {
+			const auto main = best.entries.empty() || best.entries.front() < 0 || best.entries.front() >= static_cast<std::int32_t>(a_keys.size()) ? std::string() : a_keys[best.entries.front()];
+			const auto look = ChooseLook(best.dish, a_keys, main);
+			std::scoped_lock lock(g_mainLock);
+			(a_cook ? g_cookLook : g_lastLook)[best.dish] = look;
+		}
+
 		if (a_only < 0 && !a_quiet && best.dish >= 0 && !best.entries.empty() && !Str(std::format("dish.{}.gw", best.dish)).empty()) {
 			std::scoped_lock lock(g_mainLock);
 			(a_cook ? g_cookMain : g_lastMain)[best.dish] = Str("ish." + a_keys[best.entries.front()]);
+		}
+		if (a_only < 0 && !a_quiet && best.dish >= 0 && !best.entries.empty() && Int(std::format("dish.{}.dk", best.dish)) != 0) {
+			std::vector<std::string> slotKeys;
+			for (const auto e : best.entries) {
+				if (e >= 0 && e < static_cast<std::int32_t>(a_keys.size())) slotKeys.push_back(a_keys[e]);
+			}
+			auto name = DrinkName(best.dish, slotKeys);
+			std::scoped_lock lock(g_mainLock);
+			(a_cook ? g_cookDrink : g_lastDrink)[best.dish] = std::move(name);
 		}
 		return best;
 	}
@@ -1164,7 +1619,8 @@
 		std::int32_t enablerStar = 0;
 		bool gotVeg = false;
 		bool gotStaple = false;
-		std::int32_t recipeHelper = -1;  // the drink an insect egg in the recipe slot needs (last pass): spent by a plain dish too
+		std::int32_t recipeHelper = -1;  // the drink an unappetizing recipe ingredient needs (last pass): spent by a plain dish too
+		std::int32_t recipeGarlic = -1;  // the Garlic (or Earthy potion) a poisonous recipe ingredient needs: the same
 		for (int pass = dragonIdx >= 0 ? 0 : 1; pass < 2; ++pass) {
 			const bool withDragon = pass == 0;
 			r.used = dishUsed;
@@ -1213,9 +1669,14 @@
 				}
 			}
 			recipeHelper = -1;
+			recipeGarlic = -1;
 			if (choice.needAlc && alcIdx >= 0 && !withDragon) {
-				needAlc = true;  // an insect egg in its recipe slot stays gross: it needs the drink too
+				needAlc = true;  // an unappetizing recipe ingredient needs the drink too
 				recipeHelper = alcIdx;
+			}
+			if (choice.needGarlic && garlicIdx >= 0 && !withDragon) {
+				needGarlic = true;  // a poisonous recipe ingredient needs the Garlic too
+				recipeGarlic = garlicIdx;
 			}
 			if (needAlc) {
 				r.used[alcIdx] = true;
@@ -1347,6 +1808,11 @@
 			if (recipeHelper >= 0) {
 				r.used[recipeHelper] = true;
 				r.enabler[recipeHelper] = true;
+			}
+			if (recipeGarlic >= 0) {
+				r.used[recipeGarlic] = true;
+				r.enabler[recipeGarlic] = true;
+				r.cure = recipeGarlic;  // (a vampire eats a Garlic dish at half strength, as with a seasoning's Garlic)
 			}
 		}
 		r.dragonIdle = dragonIdx >= 0 && !r.dragon ? dragonIdx : -1;

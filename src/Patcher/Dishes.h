@@ -54,7 +54,10 @@ namespace FCPatch
 		Misc,          // made from the Misc section only (special cases, quest recipes, preparation steps, conversions)
 		NoLook,        // no mesh
 		Unusable,      // a recipe slot nothing can fill (a_accept said no)
-		LeftOut        // the player said it isn't a dish
+		LeftOut,       // the player said it isn't a dish
+		OwnLook        // a dish of ours of the same kind takes its main ingredient (Gourmet's Boar Stew: our Meat Stew): our recipe
+		               // stays, and this model is a look of that dish, shown when that ingredient is the main one (his rules
+		               // 2026-11-24: "we only take the model from the mods. our mod does the cooking")
 	};
 
 	constexpr const char* HERB_OR_SALT = "Herbs or salt";  // a slot "group" that isn't one of our 30: any flower or herb, or a salt
@@ -100,6 +103,7 @@ namespace FCPatch
 		std::string           why;
 		std::size_t           sameAs = static_cast<std::size_t>(-1);  // index of the dish it repeats
 		std::vector<std::uint32_t> lockRecipes;  // every recipe of it is quest-locked: as a new dish, ours unlocks with any of them
+		std::int32_t          ourDish = -1;  // OwnLook: the dish of ours that makes it
 	};
 
 	// a_dishes is reordered into the fixed reading order (plugin file name, then local form ID); results match that order.
@@ -111,11 +115,14 @@ namespace FCPatch
 	// a_rulesCook (dish index in a_dishes, its result): true when our own pot rules cook its main ingredient into a dish of its kind
 	// at its station (the look gives the kind). A look we have (vanilla, or a modded dish read before) counts as covered only
 	// then: "Catfish Pie" on the apple pie mesh is covered by Fish Pie; with no general dish for it, it would be a new dish.
+	// a_ourGeneral (dish index in a_dishes, its result): for a dish with its own model, our dish of the same kind at its
+	// station whose first slot takes its main ingredient (never a drink, brew or potion), or -1
 
 	std::vector<DishResult> DecideDishes(std::vector<DishInput>& a_dishes, const Words& a_words, const std::vector<std::string>& a_existingNames,
 		const std::map<std::string, std::string>& a_rawByKey, const std::function<bool(const DishResult&)>& a_accept = {},
 		const std::function<bool(const std::string&)>& a_ourRecipeTakes = {},
-		const std::function<bool(std::size_t, const DishResult&)>& a_rulesCook = {});
+		const std::function<bool(std::size_t, const DishResult&)>& a_rulesCook = {},
+		const std::function<std::int32_t(std::size_t, const DishResult&)>& a_ourGeneral = {});
 
 	struct RawCandidate
 	{
@@ -131,6 +138,48 @@ namespace FCPatch
 	};
 	// the raw item for each key word: vanilla items first, then the fixed reading order; dishes never count
 	std::map<std::string, std::string> BuildRawByKey(std::vector<RawCandidate> a_items, const Words& a_words);
+
+	// General dishes made from the installed mods' dishes (his calls 2026-11-24: "the most important thing is to use a mod
+	// model... we are using the art from the mods. we have our mod to do the cooking rules"). Mod dishes of one kind
+	// (kind word, main group, station) make one general dish of that kind for any item of the group, with a mod's model
+	// as its look. Our rules make its recipe: the kind word's tier sets the slots; the source recipes only say which
+	// groups fill the slots after the main one.
+	struct GeneralKind
+	{
+		std::string                           id;          // stable: "k:<word>|<family>|pot" (never a list position)
+		std::string                           word;        // the kind word, stemmed ("stew", "roasted")
+		std::string                           family;      // "Meat", "Fish", "Fruit", "Mushrooms", "Vegetables"...
+		std::string                           name;        // English: "Vegetable Stew", "Roasted Vegetables"
+		std::string                           generalWord; // the word in the name the main ingredient replaces ("Vegetable")
+		bool                                  oven = false;
+		std::string                           tier;        // Simple / Prepared / Elaborate
+		std::vector<std::vector<std::string>> slots;       // groups per slot: slot 0 the main group(s)
+		std::vector<std::string>              moreGroups;  // further groups by use in the source recipes, for a higher tier
+		std::vector<std::size_t>              sources;     // its dishes (indices into the dishes)
+		std::vector<std::string>              models;      // every mod model among them, most used first
+		std::size_t                           look = 0;    // the source dish whose model it shows (the most used mod model)
+		std::size_t                           items = 0;   // different main items among the sources
+	};
+	// the main groups of a family: "Meat" -> Game meat + Big game; "Fish" -> the "Fish" slot category; others itself
+	std::vector<std::string> FamilyGroups(const std::string& a_family);
+	// a_groupOf: the group of a recipe item by name (our table for vanilla items, the classifier for modded ones).
+	// a_oven: each dish made at an oven. a_covered(word, family, oven, slots): true when a dish we already have of that
+	// kind at that station takes at least half of the family's items in its first slot; for a Simple kind (one slot)
+	// any one-slot dish of a Simple or no kind counts (Grilled Meat). Then no general dish is needed: the pot already
+	// makes one (the study's measure, 2026-11-24).
+	std::vector<GeneralKind> FindGeneralKinds(const std::vector<DishInput>& a_dishes, const std::vector<DishResult>& a_results, const std::vector<bool>& a_oven,
+		const Words& a_words, const std::function<std::string(const std::string&)>& a_groupOf,
+		const std::function<bool(const std::string&, const std::string&, bool, std::size_t)>& a_covered);
+	// one tier up for a general kind whose recipe another dish already has (his rule 2026-11-24: conflicts are solved with a
+	// 2-star version, then 4 stars; no kind is ever dropped): false when it is already Elaborate
+	bool RaiseGeneralKind(GeneralKind& a_kind);
+	// a kind already at the top tier that another dish of ours always wins over: the less complicated dish goes down to 2
+	// stars (his call 2026-11-24, "what about dropping the least complicated to 2 stars?"); false when it already was
+	bool LowerGeneralKind(GeneralKind& a_kind);
+	// a 2-star kind whose recipe is still taken: its last slot becomes the next group its source recipes use (then our
+	// recipes' usual partners) that its other slots don't have. a_next: where the search goes on next time (start at 0).
+	// False when none is left
+	bool SwapGeneralKindLastSlot(GeneralKind& a_kind, std::size_t& a_next);
 
 	const char* VerdictName(DishVerdict a_v);
 }

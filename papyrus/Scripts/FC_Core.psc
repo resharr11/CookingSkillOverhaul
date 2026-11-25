@@ -326,7 +326,7 @@ Function CookFromMenu(Form[] items) global
 		else
 			msg = FC_Menu.TrF("You cooked {0}: a plain dish with no effect.", made)
 		endif
-		; what Cook would have said in a notification (a new dish, a critical cook, a house recipe): notifications do not
+		; what Cook would have said in a notification (a new dish, a critical cook): notifications do not
 		; show while a menu is open, so the screen says it (found in game 2026-11-13: "New drink discovered" never showed)
 		msg += StorageUtil.GetStringValue(none, "FC_CookNotes")
 	endif
@@ -469,14 +469,17 @@ Function Recalc(ObjectReference pot) global
 
 	; 1. Which dish? The plugin decides (FC_Menu.ChooseDish, the same rule as the cooking screen's preview): order does
 	; not matter; of the dishes whose recipe the pot fills, food comes before brews, then the one using the most
-	; ingredients wins, then more named ones, then more of its vanilla recipe. It returns the dish, whether an insect
-	; egg in its egg slot needs the drink, then the pot entries its recipe uses.
+	; ingredients wins, then more named ones, then more of its vanilla recipe. It returns the dish, the helpers its
+	; recipe ingredients need (1 an alcoholic drink, 2 Garlic, 3 both; 2026-11-24, was insect eggs only), then the pot
+	; entries its recipe uses.
 	int[] choice = FC_Menu.ChooseDish(keys, cnt)
 	int best = -1
 	bool recipeNeedsAlc = false
+	bool recipeNeedsGarlic = false
 	if choice && choice.Length >= 2
 		best = choice[0]
-		recipeNeedsAlc = choice[1] == 1
+		recipeNeedsAlc = choice[1] == 1 || choice[1] == 3
+		recipeNeedsGarlic = choice[1] >= 2
 	endif
 	StorageUtil.FormListClear(none, "FC_Used")
 	if best < 0
@@ -546,7 +549,8 @@ Function Recalc(ObjectReference pot) global
 	if dragonIdx < 0
 		pass = 1
 	endif
-	int recipeHelper = -1  ; the drink an insect egg in the recipe slot needs (on the last pass): spent even by a plain dish
+	int recipeHelper = -1  ; the drink an unappetizing recipe ingredient needs (on the last pass): spent even by a plain dish
+	int recipeGarlic = -1  ; the Garlic a poisonous recipe ingredient needs: the same
 	while pass < 2
 		bool withDragon = pass == 0
 		i = 0
@@ -599,9 +603,14 @@ Function Recalc(ObjectReference pot) global
 			i += 1
 		endwhile
 		recipeHelper = -1
+		recipeGarlic = -1
 		if recipeNeedsAlc && alcIdx >= 0 && !withDragon
-			needAlc = true  ; an insect egg in its recipe slot stays gross: it needs the drink too
+			needAlc = true  ; an unappetizing recipe ingredient needs the drink too
 			recipeHelper = alcIdx
+		endif
+		if recipeNeedsGarlic && garlicIdx >= 0 && !withDragon
+			needGarlic = true  ; a poisonous recipe ingredient needs the Garlic too
+			recipeGarlic = garlicIdx
 		endif
 		; each helper adds its own star: a drink and Garlic both at work give 2 (his call 2026-11-15)
 		if needAlc
@@ -737,6 +746,9 @@ Function Recalc(ObjectReference pot) global
 		if recipeHelper >= 0
 			used[recipeHelper] = true
 		endif
+		if recipeGarlic >= 0
+			used[recipeGarlic] = true
+		endif
 	endif
 	; durations: 20:00 is the ceiling, reached only by a perfect meal at Cooking 100 with the Cook perk; a dragon dish
 	; lasts half a day of game time instead. sheet_v122 (built 2026-11-12): raw 4:00 / 6:00 / 8:20 by level; a meal adds
@@ -767,12 +779,12 @@ Function Recalc(ObjectReference pot) global
 		endif
 		dur = ScaleDuration(dur)
 	endif
-	; a brew (mead, ale, wine) is a young drink until 6 AM: as a juice or tea would be (tier 0) with the same
+	; a brew (mead, ale, wine) is a young drink until 6 AM: as a juice or tea would be (Simple, 1 star) with the same
 	; seasoning, so it never comes out empty and never beats the finished brew. A dragon drink is ready at once.
 	int youngLevel = 0
 	int youngDur = 0
 	if level > 0 && !dragon && FC_Menu.RuleInt("dish." + best + ".fe") == 1
-		int youngTotal = stars + enablerStar
+		int youngTotal = 1 + stars + enablerStar  ; a Simple drink's 1 base star (his call 2026-11-23)
 		youngLevel = 1
 		youngDur = 240
 		if youngTotal >= 7
@@ -955,12 +967,10 @@ Potion Function MakeDish(int best, string cat, int level, int dur, int value, bo
 			fullName = FC_Menu.TrF("{0} VI", fullName)
 		endif
 		; no quality word ("(Fine)", "(Superior)"): dropped 2026-11-12 (his call: the names are long enough; the card
-		; shows the level). A house recipe still shows "(House)": it is always a perfect dish
+		; shows the level). No "(House)" either: House Recipe now raises every dish's value, so it names none (his call 2026-11-23)
 		if dragon
 			; "Akatosh's Chilly Venison Stew": the name says it is the best
 			fullName = DragonName(StorageUtil.GetIntValue(none, "FC_Drink") == 1, fullName)
-		elseif house
-			fullName = FC_Menu.TrF("{0} (House)", fullName)
 		endif
 	else
 		; never leave a dish without effects: the item card crashes on an empty effect list (the plugin also makes sure)
@@ -1092,8 +1102,9 @@ Function Cook(ObjectReference pot) global
 		endif
 	endwhile
 	value = (value * 11 + 9) / 10
-	; House Recipe: a perfect dish (7 stars or more) becomes a house recipe, worth half again as much
-	bool house = level > 0 && !dragon && StorageUtil.GetIntValue(none, "FC_Total") >= 7 && HasTreePerk(0x85A)
+	; House Recipe: every dish and drink you cook is worth half again as much (his call 2026-11-23: "give its bonus to all
+	; meals"; until then only a perfect dish, 7 stars or more, never a dragon dish, named "(House)")
+	bool house = HasTreePerk(0x85A)
 	if house
 		value = (value * 3 + 1) / 2
 	endif
@@ -1154,7 +1165,7 @@ Function Cook(ObjectReference pot) global
 		if brewStars > 0
 			brewCat = cat
 		endif
-		int youngId = FC_Menu.YoungBrew(dish.GetFormID(), finished.GetFormID(), brewCat, FC_Menu.DishName(best, cat), brewStars, crit, house, StorageUtil.GetIntValue(none, "FC_BrewWater") == 1)
+		int youngId = FC_Menu.YoungBrew(dish.GetFormID(), finished.GetFormID(), brewCat, FC_Menu.DishName(best, cat), brewStars, crit, false, StorageUtil.GetIntValue(none, "FC_BrewWater") == 1)
 		Potion ownYoung = Game.GetFormEx(youngId) as Potion
 		if ownYoung
 			dish = ownYoung  ; (a young dish of its own: an earlier batch's young dish matures into another brew)
@@ -1177,10 +1188,6 @@ Function Cook(ObjectReference pot) global
 			player.AddItem(Game.GetFormEx(emptier), 1, true)
 		endif
 	endwhile
-	if house && StorageUtil.GetIntValue(none, "FC_House|" + FC_Menu.DishSaveKey(best)) == 0
-		StorageUtil.SetIntValue(none, "FC_House|" + FC_Menu.DishSaveKey(best), 1)
-		CookNote(FC_Menu.TrF("New house recipe: {0}.", dishName))
-	endif
 	int portions = 1
 	player.AddItem(dish, portions)
 	StorageUtil.SetStringValue(none, "FC_LastCooked", dish.GetName())

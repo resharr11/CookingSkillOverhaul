@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 set(NAME "FreeCooking" CACHE STRING "")
-set(VERSION 1.1.0)
+set(VERSION 1.2.0)
 
 project(${NAME} VERSION ${VERSION} LANGUAGES CXX)
 

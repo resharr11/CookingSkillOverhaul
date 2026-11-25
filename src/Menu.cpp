@@ -374,7 +374,7 @@ namespace
 		if (a_kind == "Not recognised") return Outcome::ToCheck;
 		if (a_kind == "Ingredient") return Outcome::NewIngredient;
 		if (a_kind == "New dish") return Outcome::NewDish;
-		if (a_kind == "Vanilla look" || a_kind == "Same look" || a_kind == "Variant") return Outcome::Covered;
+		if (a_kind == "Vanilla look" || a_kind == "Same look" || a_kind == "Variant" || a_kind == "Own look") return Outcome::Covered;
 		if (a_kind == "Misc") return Outcome::Misc;
 		return Outcome::LeftOut;
 	}

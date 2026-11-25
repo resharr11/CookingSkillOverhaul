@@ -221,6 +221,7 @@ namespace FCPatch
 			else if (kind == "DOUGHANY" && cols.size() >= 2) add(_doughAny, "", cols[1]);
 			else if (kind == "SHORTDROP" && cols.size() >= 2) add(_shortDrop, "", cols[1]);
 			else if (kind == "PRESERVED" && cols.size() >= 2) add(_preserved, "", cols[1]);
+			else if (kind == "KINDSKIP" && cols.size() >= 2) add(_kindSkip, "", cols[1]);
 			else if (kind == "PLAIN" && cols.size() >= 2) add(_plain, "", cols[1]);
 			else if (kind == "VARIANT" && cols.size() >= 2) add(_variant, "", cols[1]);
 			else if (kind == "NAMIRA" && cols.size() >= 2) add(_namira, "", cols[1]);
@@ -313,6 +314,57 @@ namespace FCPatch
 			}
 		}
 		return best;
+	}
+
+	std::string Words::KindWord(const std::string& a_name, const std::string& a_mainKey, bool* a_cut, std::string* a_asWritten) const
+	{
+		if (a_cut) *a_cut = false;
+		const Text t = MakeText(a_name, false);
+		std::vector<bool> skip(t.tokens.size(), false);  // token positions that can't be the kind: the ingredient, serving words
+		const auto mark = [&](const std::vector<std::string>& a_tokens) {
+			if (a_tokens.empty() || a_tokens.size() > t.tokens.size()) return;
+			for (std::size_t i = 0; i + a_tokens.size() <= t.tokens.size(); ++i) {
+				if (std::equal(a_tokens.begin(), a_tokens.end(), t.tokens.begin() + i)) {
+					for (std::size_t j = 0; j < a_tokens.size(); ++j) skip[i + j] = true;
+				}
+			}
+		};
+		mark(MakeText(a_mainKey, false).tokens);
+		for (const auto* list : { &_serving, &_kindSkip }) {
+			for (auto& e : *list) {
+				if (!e.phrase.cjk) mark(e.phrase.tokens);
+			}
+		}
+		const Entry* best = nullptr;
+		bool         bestCut = false;
+		std::size_t  bestEnd = 0, bestLen = 0;
+		for (const auto* list : { &_dish, &_bakedEnd, &_doughEnd, &_preserved, &_cut }) {
+			for (auto& e : *list) {
+				const auto& p = e.phrase.tokens;
+				if (e.phrase.cjk || p.empty() || p.size() > t.tokens.size()) continue;
+				for (std::size_t i = 0; i + p.size() <= t.tokens.size(); ++i) {
+					if (!std::equal(p.begin(), p.end(), t.tokens.begin() + i)) continue;
+					if (std::any_of(skip.begin() + i, skip.begin() + i + p.size(), [](bool a_b) { return a_b; })) continue;
+					const std::size_t end = i + p.size();
+					if (!best || end > bestEnd || (end == bestEnd && p.size() > bestLen)) {
+						best = &e;
+						bestEnd = end;
+						bestLen = p.size();
+						bestCut = list == &_cut;
+					}
+				}
+			}
+		}
+		if (!best) return {};
+		if (a_cut) *a_cut = bestCut;
+		if (a_asWritten) {
+			const auto raw = Tokens(a_name, false);  // the same words MakeText stems, in the same order
+			a_asWritten->clear();
+			for (std::size_t i = bestEnd - bestLen; i < bestEnd && i < raw.size(); ++i) *a_asWritten += (a_asWritten->empty() ? "" : " ") + raw[i];
+		}
+		std::string out;
+		for (auto& tok : best->phrase.tokens) out += (out.empty() ? "" : " ") + tok;
+		return out;
 	}
 
 	std::string Words::PotionWord(const std::string& a_name, const std::vector<std::string>& a_allowed) const

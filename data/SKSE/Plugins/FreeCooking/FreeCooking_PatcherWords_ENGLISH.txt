@@ -8,17 +8,17 @@
 # ---- Ingredient groups. A word written with ~ is generic: any other group word in the name wins over it.
 # Otherwise the word nearest the end of the name wins ("Goat Cheese" is cheese), then the longer phrase.
 GROUP	Dragon parts	dragon scale, dragon bone, dragon heart, dragon blood, dragon claw, dragon tooth, dragon egg, dragon eye, dragon heartscale, dragon meat, dragon tail
-GROUP	Game meat	beef, venison, goat, horse meat, horse, rabbit, boar, chicken, pheasant, ash hopper leg, ash hopper meat, dog meat, mutton, lamb, pork, ~ham, ~bacon, ~sausage, ~jerky, deer, elk, fox, wolf meat, bear meat, sabre cat meat, ~meat, ~steak, ~haunch, ~cutlet, ~chop, ~rib, ~ribs, poultry, duck, goose, quail, turkey
+GROUP	Game meat	beef, venison, goat, horse meat, horse, rabbit, boar, chicken, pheasant, ash hopper leg, ash hopper meat, dog meat, mutton, lamb, pork, ~ham, ~bacon, ~sausage, ~jerky, deer, elk, fox, wolf meat, bear meat, sabre cat meat, ~meat, ~steak, ~haunch, ~cutlet, ~chop, ~rib, ~ribs, poultry, duck, goose, quail, turkey, hawk, tern
 GROUP	Big game	mammoth, horker, mammoth snout, mammoth meat, horker meat, whale, netch
 GROUP	Shellfish	clam, mudcrab leg, mudcrab, crab, barnacle, mussel, oyster, shrimp, lobster, scallop, crayfish, snail
-GROUP	River fish	salmon, carp, catfish, pond fish, perch, longfin, river betty, spadetail, histcarp, bucket fish, trout, pike, bass, bleak, shiner, minnow, ~fish, slaughterfish
+GROUP	River fish	salmon, carp, catfish, pond fish, perch, longfin, river betty, spadetail, histcarp, bucket fish, trout, pike, bass, bleak, shiner, minnow, ~fish, slaughterfish, silverside, tuna
 GROUP	Cold-water fish	arctic char, arctic grayling, grayling, cod, cabezon, herring, char, halibut
 GROUP	Exotic fish	angler, angelfish, glassfish, glass catfish, dragonfish, vampire fish, salmon roe, roe, caviar, anthias, pearlfish, spadefish, sunfish, goldfish, tripod fish, slaughterfish egg, eel
 GROUP	Vegetables	cabbage, potato, leek, carrot, tomato, gourd, ash yam, yam, corkbulb, onion, turnip, beet, beetroot, radish, cucumber, pumpkin, squash, lettuce, spinach, pea, peas, bean, beans, corn, pepper, eggplant, celery, parsnip, artichoke, asparagus, broccoli, kale, zucchini, courgette, okra, chickpea, lentil, pickle, ~vegetable
 GROUP	Fruit & nuts	apple, alocasia, ironwood nut, ~nut, pear, plum, peach, cherry, orange, lemon, lime, melon, fig, date, banana, apricot, avocado, coconut, watermelon, cantaloupe, kiwi, mango, papaya, grapefruit, pineapple, guava, lychee, pomegranate, almond, walnut, chestnut, hazelnut, acorn, pumpkin seed, ~seed, ~fruit
 GROUP	Berries	snowberry, juniper, jazbay, comberry, ~berry, strawberry, blueberry, blackberry, raspberry, cranberry, lingonberry, elderberry, gooseberry, grape
 GROUP	Sweeteners	honey, honeycomb, moon sugar, ~sugar, syrup, molasses
-GROUP	Flowers & herbs	mountain flower, lavender, elves ear, trama root, coda flower, gold kanet, hackle lo, redwort, roobrush, stoneflower, ~flower, ~herb, mint, thyme, rosemary, sage, basil, parsley, dill, chamomile, heather, st jahn's wort, hyacinth, ~petal, ~leaf, tea leaf
+GROUP	Flowers & herbs	mountain flower, lavender, elves ear, trama root, coda flower, gold kanet, hackle lo, redwort, roobrush, stoneflower, ~flower, ~herb, mint, thyme, rosemary, sage, basil, parsley, dill, chamomile, heather, st jahn's wort, hyacinth, ~petal, ~leaf, tea leaf, aloe
 GROUP	Glowing fungi	glowing mushroom, gleamblossom, luminous russula, ambrosia, aster bloom, bog beacon, hydnum azure
 GROUP	Mushrooms	white cap, blisterwort, fly amanita, bleeding crown, mora tapinella, scaly pholiota, blister pod, fungus stalk, hypha facia, wisp stalk, worms head cap, ~mushroom, ~fungus, toadstool, truffle, ~cap
 GROUP	Hot herbs	fire salt, dragon's tongue, flame stalk, fire petal, chili, chilli, hot pepper, ginger, mustard, horseradish
@@ -26,17 +26,17 @@ GROUP	Cold herbs	frost mirriam, frost salt, thistle, mirriam
 GROUP	Wetland produce	swamp fungal pod, netch jelly, marshmerrow, void salt, storm salt, red kelp, kelp, scrib jelly, ash hopper jelly, seaweed, algae, reed, cattail
 GROUP	Staples	water, waterskin, salt, butter, milk, flour, egg, wheat, garlic, bread, saltrice, ~oil, dough, batter, yeast, grain, barley, oat, oats, rye, cream, lard, vinegar, ~spice, ~seasoning, pepper corn, peppercorn, cinnamon, clove, nutmeg, saffron, vanilla, turmeric, cumin, paprika, baguette, cornmeal, pasta, noodle, rice, millet, yogurt, yoghurt
 GROUP	Cheese	cheese, cheese wheel, cheese wedge, cheese bowl, curd, cheddar, gouda, brie, parmesan, mozzarella, feta, gorgonzola, camembert, roquefort, ricotta
-GROUP	Drinks	ale, mead, wine, brandy, flin, shein, matze, sujamma, beer, rum, whiskey, whisky, vodka, spirit, liquor, cider, juice, tea, coffee, rye whiskey, cocoa, brew, kefir, kvass
+GROUP	Drinks	ale, mead, wine, brandy, flin, shein, matze, sujamma, beer, rum, whiskey, whisky, vodka, spirit, liquor, cider, juice, tea, coffee, rye whiskey, cocoa, brew, kefir, kvass, mazte, bloodwine
 GROUP	Claws, teeth & horns	antler, claw, bone meal, tusk, beak, teeth, tooth, horn, fang, talon, bone
 GROUP	Hides, scales & shells	husk, hide, chitin, pearl, scale, wax, fin, shell, pelt, skin, leather, hair, fur, wool
 GROUP	Feathers & wings	feather, wing, moth, butterfly
-GROUP	Insects & eggs	chaurus egg, bee, antennae, dartwing, thorax, spider egg, blissbug, ichor, ~insect, beetle, dragonfly, darner, firefly, cricket, ~larva, ~larvae, ~grub, ~worm, egg sac
+GROUP	Insects & eggs	chaurus egg, bee, antennae, dartwing, thorax, spider egg, blissbug, ichor, ~insect, beetle, dragonfly, darner, firefly, cricket, ~larva, ~larvae, ~grub, ~worm, egg sac, torchbug, chaurus meat
 GROUP	Fat & flesh	troll fat, giant's toe, skeever tail, mort flesh, fat, flesh, tail, toe, heart, liver, kidney, tongue, blood, gut, intestine, brain, gizzard, offal
 GROUP	Eyes, ears & tongues	eye, ear, eyeball, hunger tongue
 GROUP	Magical remains	spawn ash, daedra heart, dwarven oil, ectoplasm, nirnroot, wisp wrapping, daedra silk, imp gall, lichor, sload soap, void essence, glow dust, vampire dust, ~soul, ~essence, ~dust, ~salts
 GROUP	Roots, bark & wild plants	briar heart, canis root, creep cluster, spriggan wood, emperor parasol, scathecraw, grass pod, lichen, hanging moss, spriggan sap, taproot, tundra cotton, gnarl bark, kresh fiber, withering moon, bloodgrass, spiddal stick, rot scale, screaming maw, thorn hook, ~root, ~bark, ~moss, ~sap, ~twig, ~stick, ~grass, ~fiber, ~cotton, ~resin, ~pod
 GROUP	Poisonous plants	jarrin root, poison bloom, imp stool, namira's rot, nightshade, bittergreen, bunglers bane, chokeberry, chokeweed, congealed putrescence, daedra venin, harrada, deathbell, monkshood, hemlock, wolfsbane, belladonna
-GROUP	Human & mer remains	human flesh, human heart, falmer ear
+GROUP	Human & mer remains	human flesh, human heart, falmer ear, human meat, hominid meat, hominid flesh, ~hominid
 
 # ---- Words that keep an item out entirely (spoiled stages, test records).
 SKIP	spoiled, moldy, mouldy, rotten, stale, rotting, filler, test, dummy, placeholder, template, token
@@ -56,6 +56,9 @@ UNCOOKED	raw, uncooked
 BAKED	pie, tart, tartlet, cake, crostata, pastry, pasty, quiche, strudel, torte, gateau, bread, muffin, scone, cookie, biscuit, croissant, bun, roll, cobbler, crumble, pizza, danish, dumpling, baguette, pretzel, brownie, bagel, turnover, puff, brioche, focaccia, ciabatta, naan, pita, biscotti, baklava, eclair, macaron, meringue, souffle, casserole, lasagna, lasagne, gratin, calzone, empanada, hardtack
 BAKING	baked, bake, au gratin, in a blanket
 SERVING	plate, platter, basket, pile, dish, tray
+# ---- Never the kind of a dish when the patcher makes general dishes from installed mods (SERVING words never are either):
+# ---- "Beef Stew Bread Bowl" is a stew.
+KINDSKIP	bowl, bread bowl
 # ---- A name ending in one of these is not baked, though it ends in a baked word (a pancake is fried, sweetbread is offal).
 NOTBAKED	pancake, hotcake, griddlecake, johnnycake, sweetbread, magpie
 # ---- Dough dishes that aren't baked (boiled, fried, griddled): they keep their flour like baked ones but stay at the pot.
@@ -131,6 +134,9 @@ CATEGORY	vegherbsalt	Vegetables, Flowers & herbs; salt
 CATEGORY	vegmush	Vegetables, Mushrooms;
 CATEGORY	fish	River fish, Cold-water fish, Exotic fish;
 CATEGORY	fruitherb	Fruit & nuts, Berries, Flowers & herbs;
+CATEGORY	honey	; honey, honeycomb
+CATEGORY	meadadd	Fruit & nuts, Berries, Flowers & herbs;
+CATEGORY	aleadd	Fruit & nuts, Berries, Flowers & herbs, Sweeteners;
 # ---- Flavour exceptions inside a group (the group's own flavour applies otherwise).
 # FLAVOURWORD <group> <flavour> <words>
 FLAVOURWORD	Game meat	Hearty	beef, horse, goat, boar, venison, deer, elk, bear, mutton, lamb, pork, ox, bison, sabre cat

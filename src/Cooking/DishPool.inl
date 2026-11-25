@@ -369,6 +369,12 @@
 	{
 		DishDef def;
 		def.base = static_cast<RE::FormID>(a_base);
+		// a mod's model for the cook's main ingredient on one of our general dishes ("Boar Stew" on our Meat Stew made of
+		// boar; his rule 2026-11-24): the recipe is ours, the look is the mod's (Cooking/Rules.inl DishLookForm)
+		// (only when such a model is set: every other dish, brews included, keeps the base the script passed)
+		if (const auto look = DishLookForm(a_recipe, true, true)) {
+			def.base = look->GetFormID();
+		}
 		def.needsKey = NeedsKeyOfDish(a_recipe);
 		def.name = a_name.c_str() ? a_name.c_str() : "";
 		def.value = std::max(0, a_value);

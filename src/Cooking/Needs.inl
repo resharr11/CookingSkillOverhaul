@@ -174,10 +174,11 @@
 
 	// a recipe's key on the Needs mods page: the item it makes (its dish form), except a general dish (Meat Stew, Fish
 	// Pie...: it borrows a vanilla dish's look, so the look's key would be shared with that dish), which keeps its own
-	// "f:<English name>" key (Codex review 2026-11-15, M17)
+	// "f:<English name>" key (Codex review 2026-11-15, M17); so does a general dish made from the installed mods, which
+	// borrows a mod dish's look: "k:<kind>" (review 2026-11-24, F5)
 	std::string NeedsKeyOfDish(std::int32_t a_dish)
 	{
-		if (const auto it = g_dishSaveKeys.find(a_dish); it != g_dishSaveKeys.end() && it->second.starts_with("f:")) {
+		if (const auto it = g_dishSaveKeys.find(a_dish); it != g_dishSaveKeys.end() && (it->second.starts_with("f:") || it->second.starts_with("k:"))) {
 			return it->second;
 		}
 		const auto plugin = Str(std::format("dish.{}.p", a_dish));

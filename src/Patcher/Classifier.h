@@ -78,6 +78,13 @@ namespace FCPatch
 		std::string ShortName(const std::string& a_name) const;
 		// already preserved (jerky, cured, smoked): not a raw main ingredient for a general dish
 		bool IsPreserved(const std::string& a_name) const { return Any(_preserved, a_name, false); }
+		// the kind of dish a name is, for the general dishes made from installed mods (his calls 2026-11-24): the dish,
+		// baked, dough, cut or preserved word nearest the end of the name ("Wild Mushroom Stew" -> "stew", "Roasted Carrots"
+		// -> "roasted"), never a serving word ("Vegetable Plate": no kind), a KINDSKIP phrase ("Beef Stew Bread Bowl" ->
+		// "stew") or a word of a_mainKey, the ingredient's own word. Returned stemmed, words joined by a space; "" if none.
+		// a_cut is set when it is a cut of meat (steak, chop: our Grilled Meat); a_asWritten gets the name's own words for it
+		// (lower case, not stemmed: "cookies", not "cooky")
+		std::string KindWord(const std::string& a_name, const std::string& a_mainKey, bool* a_cut = nullptr, std::string* a_asWritten = nullptr) const;
 		// the words of a name that say which item it is (stemmed; plain, joining, salt, dish, variant, flavour and generic group
 		// words left out): "Raw Horker Meat" -> {horker}
 		std::vector<std::string> DistinctWords(const std::string& a_name) const;
@@ -121,7 +128,7 @@ namespace FCPatch
 		const Entry* Best(const std::vector<Entry>& a_list, const std::string& a_text, bool a_isId) const;
 		bool         Any(const std::vector<Entry>& a_list, const std::string& a_text, bool a_isId) const;
 
-		std::vector<Entry>                               _groups, _dish, _skip, _variant, _namira, _people, _join, _combine, _safeEnd, _dragonBody, _flavour, _salt, _misc, _plain, _cut, _uncooked, _bakedEnd, _bakedAny, _serving, _notBaked, _doughEnd, _doughAny, _shortDrop, _preserved, _potion;
+		std::vector<Entry>                               _groups, _dish, _skip, _variant, _namira, _people, _join, _combine, _safeEnd, _dragonBody, _flavour, _salt, _misc, _plain, _cut, _uncooked, _bakedEnd, _bakedAny, _serving, _notBaked, _doughEnd, _doughAny, _shortDrop, _preserved, _potion, _kindSkip;
 		std::vector<std::pair<std::string, std::string>> _keywords;  // keyword editor ID -> group / DISH / SKIP
 		struct Category
 		{

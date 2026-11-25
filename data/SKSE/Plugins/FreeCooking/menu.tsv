@@ -1,57 +1,57 @@
-D	0	Cooked Flame Angelfish	0	0	0	~ccbgssse001-fish.esm:2283
-D	1	Cooked Angler	0	0	0	~ccbgssse001-fish.esm:2192
-D	2	Cooked Angler Larvae	0	0	0	~ccbgssse001-fish.esm:2288
-D	3	Cooked Arctic Char	0	0	0	~ccbgssse001-fish.esm:2212
-D	4	Cooked Arctic Grayling	0	0	0	~ccbgssse001-fish.esm:2211
-D	5	Cooked Atlantic Cod	0	0	0	~ccbgssse001-fish.esm:2210
-D	6	Cooked Boar Meat	0	0	0	~Dragonborn.esm:245012
-D	7	Cooked Bucket Fish	0	0	0	~ccbgssse001-fish.esm:2204
+D	0	Cooked Flame Angelfish	1	0	0	~ccbgssse001-fish.esm:2283
+D	1	Cooked Angler	1	0	0	~ccbgssse001-fish.esm:2192
+D	2	Cooked Angler Larvae	1	0	0	~ccbgssse001-fish.esm:2288
+D	3	Cooked Arctic Char	1	0	0	~ccbgssse001-fish.esm:2212
+D	4	Cooked Arctic Grayling	1	0	0	~ccbgssse001-fish.esm:2211
+D	5	Cooked Atlantic Cod	1	0	0	~ccbgssse001-fish.esm:2210
+D	6	Cooked Boar Meat	1	0	0	~Dragonborn.esm:245012
+D	7	Cooked Bucket Fish	1	0	0	~ccbgssse001-fish.esm:2204
 D	8	Cabbage Soup	2	0	0	~Skyrim.esm:412479	any herb or salt~Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208|Skyrim.esm:216287|cckrtsse001_altar.esl:3974|Skyrim.esm:240990|Skyrim.esm:240991|Skyrim.esm:240992
-D	9	Cooked Cabezon	0	0	0	~ccbgssse001-fish.esm:2209
-D	10	Cooked Carp	0	0	0	~ccbgssse001-fish.esm:2200
+D	9	Cooked Cabezon	1	0	0	~ccbgssse001-fish.esm:2209
+D	10	Cooked Carp	1	0	0	~ccbgssse001-fish.esm:2200
 D	11	Clam Chowder	4	0	0	~Skyrim.esm:965123	any dairy~HearthFires.esm:13628|HearthFires.esm:13620|Skyrim.esm:412465|Skyrim.esm:412466|Skyrim.esm:412467|Skyrim.esm:412469|Skyrim.esm:412468|Skyrim.esm:412470|Skyrim.esm:420259|ccbgssse038-bowofshadows.esl:2073	any vegetable~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057
 D	12	Crab Stew	4	0	0	~ccbgssse001-fish.esm:3838	any vegetable~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057	a vegetable, herb or salt~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057|Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208|Skyrim.esm:216287|cckrtsse001_altar.esl:3974|Skyrim.esm:240990|Skyrim.esm:240991|Skyrim.esm:240992
 D	13	Creamy Crab Bisque	4	0	0	~ccbgssse001-fish.esm:3838	any dairy~HearthFires.esm:13628|HearthFires.esm:13620|Skyrim.esm:412465|Skyrim.esm:412466|Skyrim.esm:412467|Skyrim.esm:412469|Skyrim.esm:412468|Skyrim.esm:412470|Skyrim.esm:420259|ccbgssse038-bowofshadows.esl:2073	any flour~HearthFires.esm:13624
 D	14	Potato Crab Chowder	4	0	0	~ccbgssse001-fish.esm:3838	~Skyrim.esm:412481	any dairy~HearthFires.esm:13628|HearthFires.esm:13620|Skyrim.esm:412465|Skyrim.esm:412466|Skyrim.esm:412467|Skyrim.esm:412469|Skyrim.esm:412468|Skyrim.esm:412470|Skyrim.esm:420259|ccbgssse038-bowofshadows.esl:2073
 D	15	Tomato Crab Bisque	4	0	0	~ccbgssse001-fish.esm:3838	~Skyrim.esm:412482	any dairy~HearthFires.esm:13628|HearthFires.esm:13620|Skyrim.esm:412465|Skyrim.esm:412466|Skyrim.esm:412467|Skyrim.esm:412469|Skyrim.esm:412468|Skyrim.esm:412470|Skyrim.esm:420259|ccbgssse038-bowofshadows.esl:2073
-D	16	Cooked Cuckoo Catfish	0	0	0	~ccbgssse001-fish.esm:2199
-D	17	Cooked Dragonfish	0	0	0	~ccbgssse001-fish.esm:2198
+D	16	Cooked Cuckoo Catfish	1	0	0	~ccbgssse001-fish.esm:2199
+D	17	Cooked Dragonfish	1	0	0	~ccbgssse001-fish.esm:2198
 D	18	Elsweyr Fondue	4	0	0	any cheese~Skyrim.esm:412465|Skyrim.esm:412466|Skyrim.esm:412467|Skyrim.esm:412469|Skyrim.esm:412468|Skyrim.esm:412470|Skyrim.esm:420259|ccbgssse038-bowofshadows.esl:2073	any drink~Skyrim.esm:216158|HearthFires.esm:13622|HearthFires.esm:13621|Dragonborn.esm:133093|Dragonborn.esm:218927|Dragonborn.esm:149710|Dragonborn.esm:205023|Dragonborn.esm:149708|Dragonborn.esm:133094|Skyrim.esm:100703|Skyrim.esm:181082|Skyrim.esm:1009983|Skyrim.esm:329930|Skyrim.esm:216157|Skyrim.esm:545640|Skyrim.esm:201531|Skyrim.esm:807753|Skyrim.esm:201532|Skyrim.esm:807752|Skyrim.esm:349672|Skyrim.esm:1079946|Skyrim.esm:758231|ccbgssse001-fish.esm:3117	any bread~Skyrim.esm:416919|Skyrim.esm:416920
-D	19	Cooked Glass Catfish	0	0	0	~ccbgssse001-fish.esm:2208
-D	20	Cooked Asiatic Glassfish	0	0	0	~ccbgssse001-fish.esm:2286
-D	21	Cooked Goldfish	0	0	0	~ccbgssse001-fish.esm:2287
+D	19	Cooked Glass Catfish	1	0	0	~ccbgssse001-fish.esm:2208
+D	20	Cooked Asiatic Glassfish	1	0	0	~ccbgssse001-fish.esm:2286
+D	21	Cooked Goldfish	1	0	0	~ccbgssse001-fish.esm:2287
 D	22	Long Taffy Treat	2	0	0	any sweetener~Skyrim.esm:1063245|Skyrim.esm:723141|Skyrim.esm:888383	any dairy~HearthFires.esm:13628|HearthFires.esm:13620|Skyrim.esm:412465|Skyrim.esm:412466|Skyrim.esm:412467|Skyrim.esm:412469|Skyrim.esm:412468|Skyrim.esm:412470|Skyrim.esm:420259|ccbgssse038-bowofshadows.esl:2073
-D	23	Nord Mead	2	1	1	any sweetener~Skyrim.esm:1063245|Skyrim.esm:723141|Skyrim.esm:888383	any flower or herb~Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208
+D	23	Mead with Fruit or Herbs	2	1	1	honey or honeycomb~Skyrim.esm:1063245|Skyrim.esm:723141	a fruit, herb or Moon Sugar~Skyrim.esm:412462|Skyrim.esm:412463|ccbgssse037-curios.esl:3426|Skyrim.esm:437322|Skyrim.esm:329582|Skyrim.esm:111549|ccbgssse037-curios.esl:2054|Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208|Skyrim.esm:888383
 D	24	Horker Loaf	2	0	0	~Skyrim.esm:416923	any herb or salt~Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208|Skyrim.esm:216287|cckrtsse001_altar.esl:3974|Skyrim.esm:240990|Skyrim.esm:240991|Skyrim.esm:240992
 D	25	Horker and Ash Yam Stew	4	0	0	~Skyrim.esm:416923	~Dragonborn.esm:132839	any vegetable or mushroom~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057|Skyrim.esm:968816|Skyrim.esm:317952|Skyrim.esm:317984|Skyrim.esm:317986|Skyrim.esm:317989|Skyrim.esm:457040|ccbgssse037-curios.esl:3434|ccbgssse037-curios.esl:2091|ccbgssse037-curios.esl:2062|ccbgssse037-curios.esl:2083|ccbgssse037-curios.esl:2085|ccbgssse040-advobgobs.esl:2098
 D	26	Horker Stew	4	0	0	~Skyrim.esm:416923	any vegetable except Ash Yam~cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057	a vegetable, herb or salt~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057|Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208|Skyrim.esm:216287|cckrtsse001_altar.esl:3974|Skyrim.esm:240990|Skyrim.esm:240991|Skyrim.esm:240992
-D	27	Horse Haunch	0	0	0	~Skyrim.esm:416924
+D	27	Horse Haunch	1	0	0	~Skyrim.esm:416924
 D	28	Ironwood Nut Soup	2	0	0	~cckrtsse001_altar.esl:3855	any herb or salt~Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208|Skyrim.esm:216287|cckrtsse001_altar.esl:3974|Skyrim.esm:240990|Skyrim.esm:240991|Skyrim.esm:240992
-D	29	Cooked Juvenile Mudcrab	0	0	0	~ccbgssse001-fish.esm:2290
-D	30	Grilled Leeks	0	0	0	~Skyrim.esm:420261
-D	31	Cooked Lyretail Anthias	0	0	0	~ccbgssse001-fish.esm:2289
-D	32	Mammoth Steak	0	0	0	~Skyrim.esm:420260
-D	33	Steamed Mudcrab Legs	0	0	0	~HearthFires.esm:13632
-D	34	Cooked Austrolebias	0	0	0	~ccbgssse001-fish.esm:2284
-D	35	Pheasant Roast	0	0	0	~Skyrim.esm:416925
-D	36	Cooked Pinnate Spadefish	0	0	0	~ccbgssse001-fish.esm:2291
+D	29	Cooked Juvenile Mudcrab	1	0	0	~ccbgssse001-fish.esm:2290
+D	30	Grilled Leeks	1	0	0	~Skyrim.esm:420261
+D	31	Cooked Lyretail Anthias	1	0	0	~ccbgssse001-fish.esm:2289
+D	32	Mammoth Steak	1	0	0	~Skyrim.esm:420260
+D	33	Steamed Mudcrab Legs	1	0	0	~HearthFires.esm:13632
+D	34	Cooked Austrolebias	1	0	0	~ccbgssse001-fish.esm:2284
+D	35	Pheasant Roast	1	0	0	~Skyrim.esm:416925
+D	36	Cooked Pinnate Spadefish	1	0	0	~ccbgssse001-fish.esm:2291
 D	37	Potato Soup	2	0	0	~Skyrim.esm:412481	any herb or salt~Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208|Skyrim.esm:216287|cckrtsse001_altar.esl:3974|Skyrim.esm:240990|Skyrim.esm:240991|Skyrim.esm:240992
-D	38	Cooked Pygmy Sunfish	0	0	0	~ccbgssse001-fish.esm:2285
+D	38	Cooked Pygmy Sunfish	1	0	0	~ccbgssse001-fish.esm:2285
 D	39	Beef Stew	4	0	0	~Skyrim.esm:416921	any vegetable~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057	any vegetable or mushroom~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057|Skyrim.esm:968816|Skyrim.esm:317952|Skyrim.esm:317984|Skyrim.esm:317986|Skyrim.esm:317989|Skyrim.esm:457040|ccbgssse037-curios.esl:3434|ccbgssse037-curios.esl:2091|ccbgssse037-curios.esl:2062|ccbgssse037-curios.esl:2083|ccbgssse037-curios.esl:2085|ccbgssse040-advobgobs.esl:2098
-D	40	Cooked Beef	0	0	0	~Skyrim.esm:416921
-D	42	Grilled Chicken Breast	0	0	0	~Skyrim.esm:991249
-D	43	Leg of Goat Roast	0	0	0	~Skyrim.esm:416922
-D	44	Rabbit Haunch	0	0	0	~Skyrim.esm:416926
+D	40	Cooked Beef	1	0	0	~Skyrim.esm:416921
+D	42	Grilled Chicken Breast	1	0	0	~Skyrim.esm:991249
+D	43	Leg of Goat Roast	1	0	0	~Skyrim.esm:416922
+D	44	Rabbit Haunch	1	0	0	~Skyrim.esm:416926
 D	45	Grilled Salmon	2	0	0	any salmon~Skyrim.esm:416927|ccbgssse001-fish.esm:2203	any herb or salt~Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208|Skyrim.esm:216287|cckrtsse001_altar.esl:3974|Skyrim.esm:240990|Skyrim.esm:240991|Skyrim.esm:240992
-D	46	Salmon Steak	0	0	0	any salmon~Skyrim.esm:416927|ccbgssse001-fish.esm:2203
-D	47	Cooked Slaughterfish	0	0	0	~ccbgssse001-fish.esm:3877
+D	46	Salmon Steak	1	0	0	any salmon~Skyrim.esm:416927|ccbgssse001-fish.esm:2203
+D	47	Cooked Slaughterfish	1	0	0	~ccbgssse001-fish.esm:3877
 D	48	Tomato Soup	2	0	0	~Skyrim.esm:412482	any herb or salt~Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208|Skyrim.esm:216287|cckrtsse001_altar.esl:3974|Skyrim.esm:240990|Skyrim.esm:240991|Skyrim.esm:240992
-D	49	Cooked Tripod Fish	0	0	0	~ccbgssse001-fish.esm:2206
-D	50	Cooked Tuna Salmon	0	0	0	~ccbgssse001-fish.esm:2193
-D	51	Cooked Vampire Fish	0	0	0	~ccbgssse001-fish.esm:2187
-D	52	Venison Chop	0	0	0	~Skyrim.esm:420258
+D	49	Cooked Tripod Fish	1	0	0	~ccbgssse001-fish.esm:2206
+D	50	Cooked Tuna Salmon	1	0	0	~ccbgssse001-fish.esm:2193
+D	51	Cooked Vampire Fish	1	0	0	~ccbgssse001-fish.esm:2187
+D	52	Venison Chop	1	0	0	~Skyrim.esm:420258
 D	53	Venison Stew	4	0	0	~Skyrim.esm:420258	any vegetable~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057	a vegetable, herb or salt~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057|Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208|Skyrim.esm:216287|cckrtsse001_altar.esl:3974|Skyrim.esm:240990|Skyrim.esm:240991|Skyrim.esm:240992
-D	54	Ale	2	1	1	any grain~Skyrim.esm:307386|ccbgssse037-curios.esl:2074	any flower or herb~Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208
+D	54	Ale with Fruit or Herbs	2	1	1	any grain~Skyrim.esm:307386|ccbgssse037-curios.esl:2074	a fruit, herb or sweetener~Skyrim.esm:412462|Skyrim.esm:412463|ccbgssse037-curios.esl:3426|Skyrim.esm:437322|Skyrim.esm:329582|Skyrim.esm:111549|ccbgssse037-curios.esl:2054|Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208|Skyrim.esm:1063245|Skyrim.esm:723141|Skyrim.esm:888383
 D	56	Cabbage Potato Soup	4	0	0	~Skyrim.esm:412479	~Skyrim.esm:412481	any vegetable or mushroom~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057|Skyrim.esm:968816|Skyrim.esm:317952|Skyrim.esm:317984|Skyrim.esm:317986|Skyrim.esm:317989|Skyrim.esm:457040|ccbgssse037-curios.esl:3434|ccbgssse037-curios.esl:2091|ccbgssse037-curios.esl:2062|ccbgssse037-curios.esl:2083|ccbgssse037-curios.esl:2085|ccbgssse040-advobgobs.esl:2098
 D	57	Vegetable Soup	4	0	0	any vegetable~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057	any vegetable~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057	any vegetable~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057
 D	58	Apple Cabbage Stew	4	0	0	an apple~Skyrim.esm:412462|Skyrim.esm:412463	~Skyrim.esm:412479	any vegetable~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057
@@ -61,7 +61,7 @@ D	61	Boiled Creme Treat	4	0	0	any sweetener~Skyrim.esm:1063245|Skyrim.esm:723141
 D	62	Jazbay Crostata	4	0	0	~Skyrim.esm:437322	~HearthFires.esm:13624	any sweetener~Skyrim.esm:1063245|Skyrim.esm:723141|Skyrim.esm:888383
 D	63	Juniper Berry Crostata	4	0	0	~Skyrim.esm:329582	~HearthFires.esm:13624	any sweetener~Skyrim.esm:1063245|Skyrim.esm:723141|Skyrim.esm:888383
 D	64	Lavender Dumpling	4	0	0	~Skyrim.esm:285736	~HearthFires.esm:13624	any dairy~HearthFires.esm:13628|HearthFires.esm:13620|Skyrim.esm:412465|Skyrim.esm:412466|Skyrim.esm:412467|Skyrim.esm:412469|Skyrim.esm:412468|Skyrim.esm:412470|Skyrim.esm:420259|ccbgssse038-bowofshadows.esl:2073
-D	65	Baked Potatoes	0	0	0	~Skyrim.esm:412481
+D	65	Baked Potatoes	1	0	0	~Skyrim.esm:412481
 D	66	Potato Bread	4	0	0	~Skyrim.esm:412481	~HearthFires.esm:13624	any dairy~HearthFires.esm:13628|HearthFires.esm:13620|Skyrim.esm:412465|Skyrim.esm:412466|Skyrim.esm:412467|Skyrim.esm:412469|Skyrim.esm:412468|Skyrim.esm:412470|Skyrim.esm:420259|ccbgssse038-bowofshadows.esl:2073
 D	67	Chicken Dumpling	4	0	0	~Skyrim.esm:991249	~HearthFires.esm:13624	any vegetable or mushroom~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057|Skyrim.esm:968816|Skyrim.esm:317952|Skyrim.esm:317984|Skyrim.esm:317986|Skyrim.esm:317989|Skyrim.esm:457040|ccbgssse037-curios.esl:3434|ccbgssse037-curios.esl:2091|ccbgssse037-curios.esl:2062|ccbgssse037-curios.esl:2083|ccbgssse037-curios.esl:2085|ccbgssse040-advobgobs.esl:2098
 D	68	Braided Bread	4	0	0	~HearthFires.esm:13624	any dairy~HearthFires.esm:13628|HearthFires.esm:13620|Skyrim.esm:412465|Skyrim.esm:412466|Skyrim.esm:412467|Skyrim.esm:412469|Skyrim.esm:412468|Skyrim.esm:412470|Skyrim.esm:420259|ccbgssse038-bowofshadows.esl:2073	any egg~Skyrim.esm:146807|HearthFires.esm:61900|Skyrim.esm:518344|Skyrim.esm:146799|Skyrim.esm:518341|Skyrim.esm:240982|Skyrim.esm:595227
@@ -71,13 +71,16 @@ D	71	Snowberry Crostata	4	0	0	~Skyrim.esm:111549	~HearthFires.esm:13624	any swee
 D	72	Apple Dumpling	4	0	0	an apple~Skyrim.esm:412462|Skyrim.esm:412463	~HearthFires.esm:13624	any dairy~HearthFires.esm:13628|HearthFires.esm:13620|Skyrim.esm:412465|Skyrim.esm:412466|Skyrim.esm:412467|Skyrim.esm:412469|Skyrim.esm:412468|Skyrim.esm:412470|Skyrim.esm:420259|ccbgssse038-bowofshadows.esl:2073
 D	73	Apple Pie	4	0	0	an apple~Skyrim.esm:412462|Skyrim.esm:412463	~HearthFires.esm:13624	any sweetener~Skyrim.esm:1063245|Skyrim.esm:723141|Skyrim.esm:888383
 D	74	Honey Nut Treat	2	0	0	~Skyrim.esm:1063245	~cckrtsse001_altar.esl:3855
-D	75	Wine	4	1	1	any fruit or berry~Skyrim.esm:412462|Skyrim.esm:412463|ccbgssse037-curios.esl:3426|Skyrim.esm:437322|Skyrim.esm:329582|Skyrim.esm:111549|ccbgssse037-curios.esl:2054	any sweetener~Skyrim.esm:1063245|Skyrim.esm:723141|Skyrim.esm:888383	a fruit, flower or herb~Skyrim.esm:412462|Skyrim.esm:412463|ccbgssse037-curios.esl:3426|Skyrim.esm:437322|Skyrim.esm:329582|Skyrim.esm:111549|ccbgssse037-curios.esl:2054|Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208
-D	76	Herbal Tea	0	1	0	any flower or herb~Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208
-D	77	Charred Skeever Meat	0	0	0	~Skyrim.esm:241007
-D	79	Long Pork Roast	0	0	0	~Skyrim.esm:1054387
+D	75	Wine with Fruit or Herbs	4	1	1	any fruit or berry~Skyrim.esm:412462|Skyrim.esm:412463|ccbgssse037-curios.esl:3426|Skyrim.esm:437322|Skyrim.esm:329582|Skyrim.esm:111549|ccbgssse037-curios.esl:2054	any fruit or berry~Skyrim.esm:412462|Skyrim.esm:412463|ccbgssse037-curios.esl:3426|Skyrim.esm:437322|Skyrim.esm:329582|Skyrim.esm:111549|ccbgssse037-curios.esl:2054	a fruit, flower or herb~Skyrim.esm:412462|Skyrim.esm:412463|ccbgssse037-curios.esl:3426|Skyrim.esm:437322|Skyrim.esm:329582|Skyrim.esm:111549|ccbgssse037-curios.esl:2054|Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208
+D	76	Herbal Tea	1	1	0	any flower or herb~Dawnguard.esm:10872|Dragonborn.esm:94216|Skyrim.esm:216369|Skyrim.esm:285736|Skyrim.esm:491036|Skyrim.esm:491038|Skyrim.esm:491037|ccbgssse037-curios.esl:2053|ccbgssse037-curios.esl:2093|ccbgssse037-curios.esl:2094|ccbgssse037-curios.esl:2072|ccbgssse037-curios.esl:2073|ccbgssse037-curios.esl:2079|_ResourcePack.esl:208
+D	77	Charred Skeever Meat	1	0	0	~Skyrim.esm:241007
+D	79	Long Pork Roast	1	0	0	~Skyrim.esm:1054387
 D	80	Reachcliff Stew	4	0	0	~Skyrim.esm:1054387	any vegetable~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057	any vegetable or mushroom~Dragonborn.esm:132839|cctwbsse001-puzzledungeon.esm:105760|Skyrim.esm:412479|Skyrim.esm:412480|Skyrim.esm:1103462|Skyrim.esm:420261|Skyrim.esm:412481|Skyrim.esm:412482|ccbgssse037-curios.esl:2057|Skyrim.esm:968816|Skyrim.esm:317952|Skyrim.esm:317984|Skyrim.esm:317986|Skyrim.esm:317989|Skyrim.esm:457040|ccbgssse037-curios.esl:3434|ccbgssse037-curios.esl:2091|ccbgssse037-curios.esl:2062|ccbgssse037-curios.esl:2083|ccbgssse037-curios.esl:2085|ccbgssse040-advobgobs.esl:2098
-D	81	Fruit Juice	0	1	0	any fruit or berry~Skyrim.esm:412462|Skyrim.esm:412463|ccbgssse037-curios.esl:3426|Skyrim.esm:437322|Skyrim.esm:329582|Skyrim.esm:111549|ccbgssse037-curios.esl:2054
-D	82	Cooked Nix-Hound Meat	0	0	0	~ccbgssse035-petnhound.esl:2073
+D	81	Fruit Juice	1	1	0	any fruit or berry~Skyrim.esm:412462|Skyrim.esm:412463|ccbgssse037-curios.esl:3426|Skyrim.esm:437322|Skyrim.esm:329582|Skyrim.esm:111549|ccbgssse037-curios.esl:2054
+D	82	Cooked Nix-Hound Meat	1	0	0	~ccbgssse035-petnhound.esl:2073
+D	83	Nord Mead	1	1	1	honey or honeycomb~Skyrim.esm:1063245|Skyrim.esm:723141
+D	84	Ale	1	1	1	any grain~Skyrim.esm:307386|ccbgssse037-curios.esl:2074
+D	85	Wine	2	1	1	any fruit or berry~Skyrim.esm:412462|Skyrim.esm:412463|ccbgssse037-curios.esl:3426|Skyrim.esm:437322|Skyrim.esm:329582|Skyrim.esm:111549|ccbgssse037-curios.esl:2054	any fruit or berry~Skyrim.esm:412462|Skyrim.esm:412463|ccbgssse037-curios.esl:3426|Skyrim.esm:437322|Skyrim.esm:329582|Skyrim.esm:111549|ccbgssse037-curios.esl:2054
 I	Skyrim.esm:216158	Ale	0	Drinks
 I	Skyrim.esm:604173	Argonian Ale	0	Excluded
 I	Skyrim.esm:441354	Large Antlers	1	Claws, teeth & horns
@@ -99,7 +102,7 @@ I	Skyrim.esm:146807	Chicken's Egg	1	Staples
 I	Skyrim.esm:216285	Bone Meal	2	Claws, teeth & horns
 I	Skyrim.esm:240993	Briar Heart	2	Roots, bark & wild plants
 I	Skyrim.esm:437195	Canis Root	1	Roots, bark & wild plants
-I	Skyrim.esm:337557	Charred Skeever Hide	1	Hides, scales & shells
+I	Skyrim.esm:337557	Charred Skeever Hide	1	Game meat
 I	Skyrim.esm:240982	Chaurus Eggs	1	Insects & eggs
 I	Skyrim.esm:729475	Creep Cluster	1	Roots, bark & wild plants
 I	Skyrim.esm:692629	Bee	1	Insects & eggs

@@ -3,7 +3,8 @@
 // Hearty's small health regeneration in Survival Mode is a record condition, and a condition can't read Survival's own
 // Survival_ModeEnabled (its plugin isn't one of our masters), so this sets FreeCooking.esp's FC_SurvivalOn once a second:
 // 1 while Survival Mode is on and the "Hearty heals over time" switch is on (Survival Mode settings page), else 0. (Until
-// 2026-11-12 it meant Survival Mode on; scripts now ask FC_Menu.SurvivalOn instead. To be renamed FC_HeartyRegenOn.)
+// 2026-11-12 it meant Survival Mode on; scripts now ask FC_Menu.SurvivalOn instead. The record keeps its name: players
+// never see it, and the published plugin's records stay as they are.)
 //
 // Save/load: FC_SurvivalOn is a global, so it is saved with the game; it is set again on the first tick after a load.
 // ---------------------------------------------------------------------------------------------------------------

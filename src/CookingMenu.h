@@ -45,7 +45,7 @@ public:
 	{
 		std::int32_t      index{ -1 };  // the dish's index in data.json (what FC_Core calls "best")
 		std::string       name;
-		std::int32_t      tier{ 0 };    // recipe stars: 0 simple, 2 prepared, 4 elaborate
+		std::int32_t      tier{ 0 };    // recipe (base) stars: 1 simple (0 until 2026-11-23), 2 prepared, 4 elaborate
 		bool              drink{ false };
 		std::vector<Slot> slots;
 	};

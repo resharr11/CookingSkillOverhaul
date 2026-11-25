@@ -64,10 +64,12 @@ namespace
 		g_winMemo.clear();
 	}
 
-	std::int32_t WinningDish(std::vector<std::string> a_keys, bool a_longSimmer)
+	// (a_prefer: the dish that wins a tie, -2 the player's pick: see ChooseDish)
+	std::int32_t WinningDish(std::vector<std::string> a_keys, bool a_longSimmer, std::int32_t a_prefer = -2)
 	{
 		std::ranges::sort(a_keys);
-		std::string memoKey = std::format("{}|{}", a_longSimmer ? 1 : 0, g_place.load());
+		const std::int32_t prefer = a_prefer == -2 ? g_preferDish.load() : a_prefer;
+		std::string memoKey = std::format("{}|{}|{}", a_longSimmer ? 1 : 0, g_place.load(), prefer);
 		for (const auto& k : a_keys) {
 			memoKey += '|';
 			memoKey += k;
@@ -78,29 +80,30 @@ namespace
 				return it->second;
 			}
 		}
-		const auto dish = ChooseDish(a_keys, a_longSimmer, false, -1, true).dish;  // (quiet: the preview's main ingredient stays)
+		const auto dish = ChooseDish(a_keys, a_longSimmer, false, -1, true, prefer).dish;  // (quiet: the preview's main ingredient stays)
 		std::scoped_lock lock(g_winMemoLock);
 		g_winMemo.emplace(std::move(memoKey), dish);
 		return dish;
 	}
 
 	// these keys make this dish when cooked: the dish's own rules (the cheap check on it alone first), then the cook's
-	// pick among all dishes
+	// pick among all dishes (a tie counts: picking this recipe makes it win one; 2026-11-24)
 	bool MakesDish(const std::vector<std::string>& a_keys, bool a_longSimmer, std::int32_t a_dish)
 	{
-		return ChooseDish(a_keys, a_longSimmer, false, a_dish, true).dish == a_dish && WinningDish(a_keys, a_longSimmer) == a_dish;
+		return ChooseDish(a_keys, a_longSimmer, false, a_dish, true).dish == a_dish && WinningDish(a_keys, a_longSimmer, a_dish) == a_dish;
 	}
 
 	// the alcoholic drink the recipe shortcut adds for insect eggs: one in the pot first, then the cheapest carried. One
 	// chooser for the search and the fill, so both test the same pot (Claude review 2026-11-16g, L5)
+	// (2026-11-24: the same chooser finds the Garlic or Earthy potion a poisonous recipe ingredient needs: a_garlic)
 	RE::TESBoundObject* ShortcutDrink(const std::unordered_map<RE::TESBoundObject*, std::int32_t>& a_counts,
-		const std::unordered_map<RE::TESBoundObject*, std::int32_t>& a_used, const std::vector<RE::TESBoundObject*>& a_pot)
+		const std::unordered_map<RE::TESBoundObject*, std::int32_t>& a_used, const std::vector<RE::TESBoundObject*>& a_pot, bool a_garlic = false)
 	{
 		RE::TESBoundObject* drink = nullptr;
 		std::tuple<std::int32_t, std::int32_t, RE::FormID> bestKey{ 2, 0, 0 };
 		for (const auto& [item, have] : a_counts) {
 			const auto taken = a_used.contains(item) ? a_used.at(item) : 0;
-			if (!item || have <= taken || !IngOf(item).alcohol) {
+			if (!item || have <= taken || !(a_garlic ? IngOf(item).garlic : IngOf(item).alcohol)) {
 				continue;
 			}
 			const bool inPot = std::ranges::find(a_pot, item) != a_pot.end();
@@ -112,6 +115,47 @@ namespace
 			}
 		}
 		return drink;
+	}
+}
+
+namespace
+{
+	// The helpers the recipe shortcut may add so these keys make the dish (2026-11-24: an unappetizing recipe ingredient
+	// needs an alcoholic drink, a poisonous one Garlic or an Earthy potion; was the drink for insect eggs only): none,
+	// a drink, Garlic, or both, in that order; the items added go to a_added. False: no set makes it.
+	bool WithShortcutHelpers(std::vector<std::string> a_keys, std::unordered_map<RE::TESBoundObject*, std::int32_t> a_used,
+		const std::unordered_map<RE::TESBoundObject*, std::int32_t>& a_counts, const std::vector<RE::TESBoundObject*>& a_pot,
+		bool a_longSimmer, std::int32_t a_dish, std::vector<RE::TESBoundObject*>* a_added = nullptr)
+	{
+		if (MakesDish(a_keys, a_longSimmer, a_dish)) {
+			return true;
+		}
+		for (const int set : { 1, 2, 3 }) {  // 1 a drink, 2 Garlic, 3 both
+			auto keys = a_keys;
+			auto used = a_used;
+			std::vector<RE::TESBoundObject*> added;
+			bool ok = true;
+			for (const bool garlic : { false, true }) {
+				if (!(set & (garlic ? 2 : 1))) {
+					continue;
+				}
+				auto item = ShortcutDrink(a_counts, used, a_pot, garlic);
+				if (!item) {
+					ok = false;
+					break;
+				}
+				keys.push_back(IngOf(item).key);
+				++used[item];
+				added.push_back(item);
+			}
+			if (ok && MakesDish(keys, a_longSimmer, a_dish)) {
+				if (a_added) {
+					*a_added = std::move(added);
+				}
+				return true;
+			}
+		}
+		return false;
 	}
 }
 
@@ -725,14 +769,7 @@ std::vector<CookingMenu::Pick> CookingMenu::Resolve(const Dish& a_dish, const Co
 			keys.push_back(IngOf(item).key);
 			++used[item];
 		}
-		if (MakesDish(keys, longSimmer, a_dish.index)) {
-			return true;
-		}
-		if (auto drink = ShortcutDrink(a_counts, used, a_pot)) {
-			keys.push_back(IngOf(drink).key);
-			return MakesDish(keys, longSimmer, a_dish.index);
-		}
-		return false;
+		return WithShortcutHelpers(std::move(keys), std::move(used), a_counts, a_pot, longSimmer, a_dish.index);
 	};
 	if (AllPicked(picks)) {
 		std::vector<RE::TESBoundObject*> items;
@@ -749,14 +786,15 @@ std::vector<CookingMenu::Pick> CookingMenu::Resolve(const Dish& a_dish, const Co
 	// (insect eggs and other unappetizing items need a drink in an egg slot: with no drink carried and no Long Simmer
 	// they can't make it, so they aren't tried; fewer combinations on a big inventory; Codex review 2026-11-16f, L7)
 	const bool drinkCarried = std::ranges::any_of(a_counts, [](const auto& a_e) { return a_e.first && a_e.second > 0 && IngOf(a_e.first).alcohol; });
+	const bool garlicCarried = std::ranges::any_of(a_counts, [](const auto& a_e) { return a_e.first && a_e.second > 0 && IngOf(a_e.first).garlic; });
+	// (every slot since 2026-11-24, not only egg slots: see ChooseDish; brews need no drink, "nh" dishes no helper)
+	const bool helperFree = longSimmer || Int(std::format("dish.{}.nh", a_dish.index)) == 1;
+	const bool brewed = Int(std::format("dish.{}.fe", a_dish.index)) == 1;
 	// the search runs twice at most: what is in the pot first, then (when the step cap stopped it) without that
 	// preference, so a pot of items that fit but never make the dish can't use up every try (Codex review 2026-11-16g, 7)
 	const auto rank = [&](bool a_potFirst) {
 		std::vector<std::vector<RE::TESBoundObject*>> choices;
-		std::int32_t slotIndex = -1;
 		for (const auto& slot : a_dish.slots) {
-			++slotIndex;
-			const bool grossSlot = Int(std::format("dish.{}.gr{}", a_dish.index, slotIndex)) == 1;
 			std::vector<std::pair<std::tuple<std::int32_t, std::int32_t, std::int32_t, std::int32_t>, RE::TESBoundObject*>> ranked;
 			for (auto item : slot.options) {
 				const auto it = a_counts.find(item);
@@ -769,7 +807,8 @@ std::vector<CookingMenu::Pick> CookingMenu::Resolve(const Dish& a_dish, const Co
 				if ((st >= 3 || IngOf(item).need == "ring") && slot.options.size() > 1 && !inPot) {
 					continue;
 				}
-				if (grossSlot && !longSimmer && !drinkCarried && IngOf(item).need == "alc") {
+				const auto& need = IngOf(item).need;
+				if (!helperFree && ((need == "alc" && !brewed && !drinkCarried) || (need == "garlic" && !garlicCarried))) {
 					continue;
 				}
 				ranked.push_back({ { inPot && a_potFirst ? 0 : 1, st, item->GetGoldValue(), -have }, item });
@@ -852,6 +891,7 @@ std::string CookingMenu::PickName(const Pick& a_pick)
 CookingMenu::CookingMenu()
 {
 	g_auxArt = -1;  // a new screen still has the menu file's own art on its third button: set it on the first update
+	g_preferDish = -1;  // a new screen: no recipe picked yet
 	using Flag = RE::UI_MENU_FLAGS;
 	for (auto flag : { Flag::kPausesGame, Flag::kUsesCursor, Flag::kUsesMenuContext, Flag::kDisablePauseMenu,
 			 Flag::kUpdateUsesCursor, Flag::kTopmostRenderedMenu, Flag::kHasButtonBar }) {
@@ -1357,9 +1397,9 @@ void CookingMenu::ShowDish3D(std::int32_t a_dish)
 {
 	RE::TESBoundObject* dish = nullptr;
 	if (a_dish >= 0) {
-		const auto plugin = Str(std::format("dish.{}.p", a_dish));
-		auto data = RE::TESDataHandler::GetSingleton();
-		auto form = data && !plugin.empty() ? data->LookupForm(static_cast<RE::FormID>(Int(std::format("dish.{}.id", a_dish))), plugin) : nullptr;
+		// the look the cook will get: a mod's model for the pot's main ingredient on one of our general dishes (Rules.inl
+		// DishLookForm), else the dish's own (the screen showed the plain dish while the cook had the mod's model)
+		auto form = DishLookForm(a_dish, false);
 		dish = form && form->IsBoundObject() ? static_cast<RE::TESBoundObject*>(form) : nullptr;
 	}
 	ShowItem3D(dish);
@@ -1404,7 +1444,7 @@ static std::string FlavourTag(const std::string& a_flavour)
 {
 	static const std::pair<const char*, const char*> tags[] = {
 		{ "Mighty", "Weapons, Stamina regen" }, { "Brainy", "Magic, Magicka regen" }, { "Hearty", "Defense, Health regen" },
-		{ "Sneaky", "Stealth, Pickpocket" }, { "Spicy", "Fire, resists Frost" }, { "Chilly", "Frost, resists Fire" },
+		{ "Sneaky", "Stealth, Pickpocket, Lockpicking" }, { "Spicy", "Fire, resists Frost" }, { "Chilly", "Frost, resists Fire" },
 		{ "Zesty", "Shock, resists Shock" }, { "Earthy", "Holy, resists Poison and Disease" },
 	};
 	for (const auto& [flavour, tag] : tags) {
@@ -1763,7 +1803,7 @@ CookingMenu::Pot CookingMenu::PotWithRecipe(const Dish& a_dish, const Counts& a_
 		}
 		if (check) {
 			keys.push_back(IngOf(item).key);
-			if (WinningDish(keys, longSimmer) != a_dish.index) {
+			if (WinningDish(keys, longSimmer, a_dish.index) != a_dish.index) {
 				keys.pop_back();
 				add(changed, item);
 				continue;
@@ -1803,20 +1843,13 @@ CookingMenu::Pot CookingMenu::RecipeFill(const Dish& a_dish, const Counts& a_cou
 		++used[pick.item];
 	}
 	const bool longSimmer = HasTreePerk(PERK_LONG_SIMMER);
-	// (this dish, and the dish the cook would pick from all of them: Codex review 2026-11-16f, M1)
-	if (MakesDish(keys, longSimmer, a_dish.index)) {
-		return items;
-	}
-	// one alcoholic drink more: the same one the search tried
-	auto drink = ShortcutDrink(a_counts, used, _pot);
-	if (!drink) {
+	// (this dish, and the dish the cook would pick from all of them: Codex review 2026-11-16f, M1); with the helpers the
+	// search tried (a drink, Garlic or both: the same chooser)
+	std::vector<RE::TESBoundObject*> added;
+	if (!WithShortcutHelpers(keys, used, a_counts, _pot, longSimmer, a_dish.index, &added)) {
 		return {};
 	}
-	keys.push_back(IngOf(drink).key);
-	if (!MakesDish(keys, longSimmer, a_dish.index)) {
-		return {};
-	}
-	items.push_back(drink);
+	items.insert(items.end(), added.begin(), added.end());
 	return items;
 }
 
@@ -1927,11 +1960,11 @@ void CookingMenu::ShowEntry(std::int32_t a_index)
 				for (const auto& p : picks) {
 					keys.push_back(IngOf(p.item).key);
 				}
-				const auto other = WinningDish(keys, HasTreePerk(PERK_LONG_SIMMER));
+				const auto other = WinningDish(keys, HasTreePerk(PERK_LONG_SIMMER), dish.index);
 				const std::string otherName = other >= 0 && other != dish.index ? Str(std::format("dish.{}.n", other)) : std::string();
 				ShowSimpleCard(FC::Tr(dish.name.c_str()), !otherName.empty() ?
 					FC::TrF("These ingredients would make {0} instead.", FC::Tr(otherName.c_str())) :
-					std::string(FC::Tr("These ingredients don't make this dish on their own. Insect eggs need an alcoholic drink as well.")));
+					std::string(FC::Tr("These ingredients don't make this dish on their own. An unappetizing ingredient needs an alcoholic drink, and a poisonous one needs Garlic.")));
 				info = FC::TrF("{0} Requires: {1}.", base, Join(needs));
 			} else if (AllPicked(picks)) {
 				// the card shows the dish this recipe would make with what is in the pot now
@@ -2066,6 +2099,7 @@ void CookingMenu::Press(std::int32_t a_index)
 		// remember the recipe's own ingredients: taking one out takes the whole recipe out
 		_recipeName = FC::Tr(entry.dish->name.c_str());
 		_recipeDish = entry.dish;
+		g_preferDish = entry.dish->index;  // on a tie with another dish's recipe, the pot makes this one (2026-11-24)
 		_recipeBase.clear();
 		for (const auto& pick : Resolve(*entry.dish, counts, _pot)) {
 			if (pick.item) {
@@ -2359,7 +2393,7 @@ void CookingMenu::Cooked(const std::string& a_message, std::uint32_t a_request)
 		const char* how = nullptr;
 		if (young) {
 			how = FC::Tr(has("Mead") ? "You stir the honey into warm water and set it to ferment. It will be ready by morning." :
-			      has("Wine") ? "You crush the fruit, sweeten the must and set it to ferment. It will be ready by morning." :
+			      has("Wine") ? "You crush the fruit and set it to ferment. It will be ready by morning." :
 			                    "You boil the grain into a wort and set it to ferment. It will be ready by morning.");
 		} else if (has("Herbal Tea")) {
 			how = FC::Tr("You boil water and steep the herbs.");

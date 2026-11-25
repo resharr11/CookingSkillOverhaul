@@ -78,8 +78,9 @@ namespace FCPatch
 
 	std::string NormalizeKey(std::string_view a_key)
 	{
-		// a general dish's own key on the Needs mods page ("f:Meat Stew": it has no item of its own; Needs.inl)
-		if (const auto t = Trim(a_key); t.size() > 2 && t.starts_with("f:")) {
+		// a general dish's own key on the Needs mods page ("f:Meat Stew", "k:stew|Mushrooms|pot": it has no item of its own;
+		// Needs.inl)
+		if (const auto t = Trim(a_key); t.size() > 2 && (t.starts_with("f:") || t.starts_with("k:"))) {
 			return std::string(t);
 		}
 		const auto bar = a_key.rfind('|');

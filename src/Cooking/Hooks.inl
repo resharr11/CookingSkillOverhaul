@@ -664,7 +664,7 @@
 		std::int32_t  baseValue{ 0 };  // the finished brew's value
 		float         scale{ 1.0f };   // how its brewer's skill, Cook perk and gear scaled the duration
 		bool          crit{ false };   // a critical cook: one level above its stars
-		bool          house{ false };
+		bool          house{ false };  // kept for older saves; no longer named or set (2026-11-23)
 		bool          water{ false };  // water in it: one minute more (raw)
 		RE::FormID    next{ 0 };       // the next step, once made
 	};
@@ -705,7 +705,8 @@
 	{
 		const char* counts[] = { "Vintage {0}", "{0} I", "{0} II", "{0} III", "{0} IV", "{0} V", "{0} VI" };
 		auto name = FC::TrF(counts[std::clamp(a_left, 0, 6)], a_name);
-		return a_house ? FC::TrF("{0} (House)", name) : name;
+		(void)a_house;  // no "(House)" any more (his call 2026-11-23): a house brew from an older save ages under its plain name
+		return name;
 	}
 
 	bool IsPoolDish(RE::FormID a_id)
@@ -1060,9 +1061,9 @@
 	}
 
 	// Papyrus: int[] FC_Menu.ChooseDish(string[] keys, int count): FC_Core.Recalc asks which dish its pot makes (the
-	// rules' keys of the pot entries, one per copy; the first count are used). Returns the dish index (-1: none), 1 if an
-	// insect egg in its egg slot needs the drink, then the entries filling the recipe's slots. Only strings and ints
-	// cross (ChooseDish, Cooking/Rules.inl).
+	// rules' keys of the pot entries, one per copy; the first count are used). Returns the dish index (-1: none), the
+	// helpers its recipe ingredients need (1 an alcoholic drink, 2 Garlic, 3 both; 2026-11-24, was 1 for an insect egg
+	// only), then the entries filling the recipe's slots. Only strings and ints cross (ChooseDish, Cooking/Rules.inl).
 	// FC_Menu.TakeForbiddenRefund(int kind): true once for each Namira dish just eaten without the ring (it went back in
 	// the bag) that carried that effect (0 hunger, 1 dragon warmth, 2 camp rest), so it does nothing either
 	// (FC_HungerEffectScript, FC_DragonWarmthEffectScript, FC_CampRestEffectScript). Only within a few seconds of eating it
@@ -1142,7 +1143,7 @@
 		t_scriptChoice = true;  // the running cook's station (Cooking/Rules.inl AllowedHere)
 		const auto choice = ChooseDish(keys, HasTreePerk(PERK_LONG_SIMMER), true);  // the cook's own main ingredient
 		t_scriptChoice = false;
-		std::vector<std::int32_t> result{ choice.dish, choice.needAlc ? 1 : 0 };
+		std::vector<std::int32_t> result{ choice.dish, (choice.needAlc ? 1 : 0) + (choice.needGarlic ? 2 : 0) };
 		result.insert(result.end(), choice.entries.begin(), choice.entries.end());
 		return result;
 	}

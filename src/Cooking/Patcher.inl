@@ -75,7 +75,7 @@
 
 	struct PatchCounts
 	{
-		std::size_t ingredients = 0, unknown = 0, newDishes = 0, vanillaLook = 0, sameLook = 0, variants = 0, misc = 0, slotsJoined = 0;
+		std::size_t ingredients = 0, unknown = 0, newDishes = 0, vanillaLook = 0, sameLook = 0, variants = 0, misc = 0, ownLooks = 0, slotsJoined = 0;
 	};
 
 	bool IsCreationFile(std::string_view a_file);
@@ -134,7 +134,8 @@
 			{ "any drink", "drink" }, { "any sweetener", "sweetener" }, { "any Spicy ingredient", "spicy" }, { "any grain", "grain" },
 			{ "any fruit or berry", "fruit" }, { "any flower or herb", "herb" }, { "any herb or salt", "herbsalt" }, { "any mushroom", "mushroom" },
 			{ "any egg", "egg" }, { "any bread", "bread" }, { "any flour", "flour" }, { "a vegetable, herb or salt", "vegherbsalt" },
-			{ "a fruit, flower or herb", "fruitherb" }
+			{ "a fruit, flower or herb", "fruitherb" }, { "honey or honeycomb", "honey" }, { "a fruit, herb or Moon Sugar", "meadadd" },
+			{ "a fruit, herb or sweetener", "aleadd" }
 		};
 		for (auto& [l, c] : labels) {
 			if (a_label == l) return c;
@@ -653,6 +654,7 @@
 				brew = 5;  // drinking water: a drink ingredient too (Cooking/Rules.inl)
 			}
 			if (brew) g_int["ib." + key] = brew;
+			if (r.group == "Berries") g_int["ber." + key] = 1;  // two different berries make "Berry Wine" (Rules.inl DrinkName)
 			g_stars[a_item] = flavour.empty() ? 0 : r.stars;
 			groupOfKey[key] = r.group;
 			patched.push_back({ a_item, key, r.group });
@@ -892,14 +894,14 @@
 			std::array<GeneralSlot, 3> slots;    // empty groups: no slot
 			const char*                plugin;   // its look: a vanilla dish of that kind
 			RE::FormID                 look;
-			std::int32_t               tier;     // 0 simple, 2 prepared, 4 elaborate
+			std::int32_t               tier;     // base stars: 1 simple (was 0 until 2026-11-23), 2 prepared, 4 elaborate
 			bool                       oven;
 			bool                       spit;
 		};
 		static constexpr const char* HOS = FCPatch::HERB_OR_SALT;
 		static constexpr General generals[] = {
-			{ "Grilled Meat", "Meat", { { { { "Game meat", "Big game" }, "any meat" }, {}, {} } }, "Skyrim.esm", 0x0721E8, 0, false, true },          // Cooked Beef
-			{ "Grilled Fish", "Fish", { { { { "Fish" }, "any fish" }, {}, {} } }, "Skyrim.esm", 0x064B3B, 0, false, true },                             // Salmon Steak
+			{ "Grilled Meat", "Meat", { { { { "Game meat", "Big game" }, "any meat" }, {}, {} } }, "Skyrim.esm", 0x0721E8, 1, false, true },          // Cooked Beef
+			{ "Grilled Fish", "Fish", { { { { "Fish" }, "any fish" }, {}, {} } }, "Skyrim.esm", 0x064B3B, 1, false, true },                             // Salmon Steak
 			{ "Meat Stew", "Meat", { { { { "Game meat", "Big game" }, "any meat" }, { { "Vegetables" }, "any vegetable" }, { { "Vegetables", "Mushrooms", "Dairy", HOS }, "a vegetable, mushroom, dairy, herb or salt" } } }, "Skyrim.esm", 0x0F431D, 4, false, false },  // Venison Stew
 			{ "Fish Stew", "Fish", { { { { "Fish" }, "any fish" }, { { "Vegetables" }, "any vegetable" }, { { "Vegetables", "Mushrooms", "Dairy", HOS }, "a vegetable, mushroom, dairy, herb or salt" } } }, "Skyrim.esm", 0x0F4314, 4, false, false },             // Beef Stew
 			{ "Meat Pie", "Meat", { { { { "Game meat", "Big game" }, "any meat" }, { { "Flour" }, "any flour" }, { { "Vegetables", "Mushrooms", "Egg", "Dairy" }, "a vegetable, mushroom, egg or dairy" } } }, "Skyrim.esm", 0x0CD614, 4, true, false },  // Homecooked Meal
@@ -979,8 +981,9 @@
 			g_dishes.push_back(std::move(screen));
 			++generalCount;
 		}
-		// the main ingredient's short name, for the general dishes' cooked names ("Raw Goat Meat" -> "Goat")
-		for (const char* g : { "Game meat", "Big game", "Fish", "Fruit & nuts", "Berries" }) {
+		// the main ingredient's short name, for the general dishes' cooked names ("Raw Goat Meat" -> "Goat"), and the fruit,
+		// herb or sweetener a drink is named after ("Lavender Tea", Cooking/Rules.inl DrinkName; our own list goes first)
+		for (const char* g : { "Game meat", "Big game", "Fish", "Fruit & nuts", "Berries", "Flowers & herbs", "Sweeteners" }) {
 			for (auto* item : itemsByGroup[g]) {
 				if (const auto s = words.ShortName(NameOf(item)); !s.empty()) g_str["ish." + PlainKeyOf(item)] = s;
 			}
@@ -1048,7 +1051,78 @@
 			g_place.store(place);
 			return cooks;
 		};
-		const auto autoResults = FCPatch::DecideDishes(autoInputs, words, existing, rawByKey, fillable, ourRecipeTakes, rulesCook);
+		// A mod dish with a model of its own whose kind of dish we already make with its main ingredient (his rules
+		// 2026-11-24: "we only take the model from the mods. our mod does the cooking"; "if someone downloads a mod and make
+		// a boar dish they will expect see the dish of the downloaded mod"): its model becomes a look of that dish of ours,
+		// shown when its main ingredient is the main one in the pot (ChooseLook, Cooking/Rules.inl). Gourmet's Boar Stew:
+		// our Meat Stew (stew, any meat), shown on a boar stew; Cooked Boar Meat keeps its own look.
+		const auto potOfRecipe = [&](const FCPatch::DishInput& a_d) {
+			std::vector<std::string> keys;
+			if (a_d.recipes.empty()) return keys;
+			for (const auto& it : a_d.recipes.front().items) {
+				if (it.hidden || it.notFood || it.name.empty()) continue;
+				const auto k = keysByName.find(Lower(it.name));
+				if (k == keysByName.end() || k->second.empty()) continue;
+				if (std::ranges::find(keys, k->second.front()) == keys.end()) keys.push_back(k->second.front());
+			}
+			return keys;
+		};
+		const auto mainKeysOf = [&](const FCPatch::DishResult& a_r) {
+			std::vector<std::string> keys;
+			if (a_r.slots.empty()) return keys;
+			const auto& s = a_r.slots.front();
+			if (s.named) {
+				if (const auto k = keysByName.find(Lower(s.text)); k != keysByName.end()) keys = k->second;
+			} else if (const auto g = itemsByGroup.find(s.text); g != itemsByGroup.end()) {
+				for (auto* item : g->second) keys.push_back(PlainKeyOf(item));
+			}
+			return keys;
+		};
+		// our dish of the same kind (its kind word, or both one-slot dishes of a Simple or no kind, as the general dishes'
+		// cover check below) at the same station, whose first slot takes the mod dish's main ingredient. Never a drink, a
+		// brew, a potion or a switched-off dish. Several: a named first slot first (Venison Stew before Meat Stew), then the
+		// fewest items in it, then list order. -1: no dish of that kind takes it (it stays a dish of its own)
+		std::int32_t hostCount = 0;  // our dishes before the patcher adds any: a mod dish read earlier never hosts a later one
+		while (g_str.contains(Lower(std::format("dish.{}.n", hostCount)))) ++hostCount;
+		const auto ourDishFor = [&, hostCount](std::size_t a_i, const FCPatch::DishResult& a_r) -> std::int32_t {
+			if (a_i >= inputs.size() || a_r.slots.empty()) return -1;
+			const auto mains = mainKeysOf(a_r);
+			if (mains.empty()) return -1;
+			const auto& name = inputs[a_i].name;
+			const bool  baked = (a_i < stations.size() && stations[a_i][1] && !stations[a_i][0] && !stations[a_i][2]) || a_r.baked;
+			bool        cut = false;
+			const auto  word = words.KindWord(name, words.KeyPhrase(name), &cut);
+			const bool  simple = word.empty() || cut || words.DishTier(word) == "Simple";
+			std::int32_t best = -1;
+			std::tuple<std::size_t, int, std::size_t> bestRank{};
+			for (std::int32_t o = 0; o < hostCount; ++o) {
+				const auto ns = Int(std::format("dish.{}.ns", o));
+				if (ns <= 0 || Int(std::format("dish.{}.off", o)) == 1 || Int(std::format("dish.{}.pr", o)) == 2 || Int(std::format("dish.{}.dr", o)) == 1 || Int(std::format("dish.{}.fe", o)) == 1) continue;
+				if ((Int(std::format("dish.{}.ov", o)) == 1) != baked) continue;
+				bool       hostCut = false;
+				const auto hostWord = words.KindWord(Str(std::format("dish.{}.n", o)), "", &hostCut);
+				const bool hostSimple = hostWord.empty() || hostCut || words.DishTier(hostWord) == "Simple";
+				const bool sameKind = (!word.empty() && !cut && !hostCut && hostWord == word) || (simple && hostSimple && ns == 1 && a_r.slots.size() == 1);
+				if (!sameKind) continue;
+				const auto s0 = Str(std::format("dish.{}.s0", o));
+				// how many of its main ingredients our first slot takes: a mod soup of "any vegetable" goes on our Vegetable
+				// Soup, not on Cabbage Soup (review 2026-11-24 round 4, F1); one named main ingredient: the named dish first
+				std::size_t taken = 0;
+				for (const auto& k : mains) taken += InKeySet(s0, k) ? 1 : 0;
+				if (taken == 0) continue;
+				std::size_t items = 0;
+				for (auto& k : Split(s0, '|')) {
+					if (!k.empty()) ++items;
+				}
+				const std::tuple<std::size_t, int, std::size_t> rank{ mains.size() - taken, Int(std::format("dish.{}.nm0", o)) == 1 ? 0 : 1, items };
+				if (best < 0 || rank < bestRank) {
+					best = o;
+					bestRank = rank;
+				}
+			}
+			return best;
+		};
+		const auto autoResults = FCPatch::DecideDishes(autoInputs, words, existing, rawByKey, fillable, ourRecipeTakes, rulesCook, ourDishFor);
 		// a quest recipe stays as its mod made it (in Misc), whatever an edits file says: its quest needs it
 		const auto isQuest = [&](std::size_t a_i) { return autoResults[a_i].why == "quest recipe"; };
 		for (std::size_t i = 0; i < inputs.size(); ++i) {
@@ -1058,13 +1132,15 @@
 				d.forced = e->second.choice == FCPatch::DishChoice::New ? 1 : e->second.choice == FCPatch::DishChoice::Not ? 2 : e->second.choice == FCPatch::DishChoice::Misc ? 3 : 0;
 			}
 		}
-		auto       results = FCPatch::DecideDishes(inputs, words, existing, rawByKey, fillable, ourRecipeTakes, rulesCook);  // (already in order: unchanged)
+		auto       results = FCPatch::DecideDishes(inputs, words, existing, rawByKey, fillable, ourRecipeTakes, rulesCook, ourDishFor);  // (already in order: unchanged)
 
 		std::unordered_set<std::string> unrecognisedNames;
 		for (auto* item : unrecognised) unrecognisedNames.insert(Lower(NameOf(item)));
 		say("");
 		say("== Dishes");
 		std::unordered_set<std::string> newDishKeys;  // every item a new modded dish's recipe takes
+		std::set<std::string> dishLooks;  // the models (with texture swaps) new modded dishes show so far
+		std::map<std::size_t, std::int32_t> ownLooks;  // mod dishes whose model is a look of one of our dishes (that dish)
 		static constexpr std::array<const char*, 8> flavours{ "Mighty", "Brainy", "Hearty", "Sneaky", "Earthy", "Spicy", "Chilly", "Zesty" };
 		// where our own dishes are made, by the name the variant check reads (base key): away from the oven, at the oven
 		std::map<std::string, std::pair<bool, bool>> ourNameStations;
@@ -1105,6 +1181,7 @@
 				case FCPatch::DishVerdict::Misc: return "Misc";
 				case FCPatch::DishVerdict::NoLook: return "No mesh";
 				case FCPatch::DishVerdict::LeftOut: return "Left out";
+				case FCPatch::DishVerdict::OwnLook: return "Own look";
 				default: return "No ingredient fits a slot";
 				}
 			};
@@ -1190,9 +1267,109 @@
 			if (form && (r.verdict == FCPatch::DishVerdict::VanillaLook || r.verdict == FCPatch::DishVerdict::SameLook || r.verdict == FCPatch::DishVerdict::Variant)) {
 				g_patchCooked.insert(form->GetFormID());  // our rules cook it: its own recipe stays out of Misc
 			}
-			switch (r.verdict) {
+			// a dish of ours makes it: its model is a look of that dish (lk.<dish>.<i>, read by ChooseLook when the pot cooks)
+			const auto addLook = [&](std::int32_t a_dish) {
+				const auto at = Int(std::format("lk.{}.n", a_dish));
+				std::string mainSet = "|", recipeSet = "|";
+				for (const auto& k : mainKeysOf(r)) mainSet += k + "|";
+				for (const auto& it : d.recipes.empty() ? std::vector<FCPatch::DishItem>{} : d.recipes.front().items) {
+					if (it.hidden || it.notFood) continue;
+					if (const auto k = keysByName.find(Lower(it.name)); k != keysByName.end()) {
+						for (const auto& key : k->second) {
+							if (recipeSet.find("|" + key + "|") == std::string::npos) recipeSet += key + "|";
+						}
+					}
+				}
+				g_str[Lower(std::format("lk.{}.{}.p", a_dish, at))] = d.plugin;
+				g_int[Lower(std::format("lk.{}.{}.id", a_dish, at))] = static_cast<std::int32_t>(d.localId);
+				g_str[Lower(std::format("lk.{}.{}.m", a_dish, at))] = mainSet;
+				g_str[Lower(std::format("lk.{}.{}.v", a_dish, at))] = recipeSet;
+				g_int[Lower(std::format("lk.{}.n", a_dish))] = at + 1;
+				ownLooks[i] = a_dish;
+				dishLooks.insert(d.model + "|" + d.textureSwap);
+				if (form) {
+					g_patchCooked.insert(form->GetFormID());  // our rules cook it: its own recipe stays out of Misc
+					g_dishByBase.emplace(form->GetFormID(), a_dish);  // eating it teaches our dish (Cookbook Memory)
+				}
+			};
+			// the gate every mod model as a look goes through (reviews 2026-11-24 round 4): a pot of its own recipe, with one
+			// of its main ingredients as the main one, must pick it (ChooseLook). Else it is taken back and the dish becomes a
+			// dish of its own (one star up when its recipe clashes, below): its model is never left where no pot shows it
+			// one look shows when a pot of ITS mod's recipe (its "v" keys), with one of its main ingredients as the main one,
+			// picks it
+			const auto lookShows = [&](std::int32_t a_dish, std::int32_t a_at) {
+				std::vector<std::string> pot;
+				for (auto& k : Split(Str(std::format("lk.{}.{}.v", a_dish, a_at)), '|')) {
+					if (!k.empty()) pot.push_back(k);
+				}
+				const auto s0 = Str(std::format("dish.{}.s0", a_dish));
+				for (const auto& m : Split(Str(std::format("lk.{}.{}.m", a_dish, a_at)), '|')) {
+					if (m.empty() || !InKeySet(s0, m)) continue;
+					auto withMain = pot;  // a real pot always holds its main ingredient (review round 6, R6-2)
+					if (std::ranges::find(withMain, m) == withMain.end()) withMain.push_back(m);
+					if (ChooseLook(a_dish, withMain, m) == a_at) return true;
+				}
+				return false;
+			};
+			const auto takeBackLook = [&](std::int32_t a_dish, std::int32_t a_at, bool a_lookWasNew, bool a_wasCooked, bool a_wasKnown) {
+				for (const char* f : { "p", "m", "v" }) g_str.erase(Lower(std::format("lk.{}.{}.{}", a_dish, a_at, f)));
+				g_int.erase(Lower(std::format("lk.{}.{}.id", a_dish, a_at)));
+				g_int[Lower(std::format("lk.{}.n", a_dish))] = a_at;
+				ownLooks.erase(i);
+				if (a_lookWasNew) dishLooks.erase(d.model + "|" + d.textureSwap);  // a model another dish shows stays counted
+				if (form) {  // only what this look added (a Same look dish was already cooked by our rules: review round 5, F1)
+					if (!a_wasCooked) g_patchCooked.erase(form->GetFormID());
+					if (const auto it = g_dishByBase.find(form->GetFormID()); !a_wasKnown && it != g_dishByBase.end() && it->second == a_dish) g_dishByBase.erase(it);
+				}
+			};
+			// a look of our dish, kept only when it can show AND every look that dish already has still shows (a later, narrower
+			// look must not push an earlier mod's model off every pot: reviews 2026-11-24 round 5); false: taken back, and the
+			// mod dish becomes a dish of its own (flexible stars, below), so no model is ever left where no pot shows it
+			const auto tryLook = [&](std::int32_t a_dish) {
+				const auto at = Int(std::format("lk.{}.n", a_dish));
+				const bool lookWasNew = !dishLooks.contains(d.model + "|" + d.textureSwap);
+				const bool wasCooked = form && g_patchCooked.contains(form->GetFormID());
+				const bool wasKnown = form && g_dishByBase.contains(form->GetFormID());
+				addLook(a_dish);
+				bool all = true;
+				for (std::int32_t k = 0; k <= at && all; ++k) all = lookShows(a_dish, k);
+				if (all) return true;
+				takeBackLook(a_dish, at, lookWasNew, wasCooked, wasKnown);
+				return false;
+			};
+			auto        verdict = r.verdict;
+			std::size_t mustExceed = 0;  // a dish of its own whose look lost: one star above the dish of ours it lost on
+			if (verdict == FCPatch::DishVerdict::OwnLook && r.ourDish >= 0 && !tryLook(r.ourDish)) {
+				mustExceed = static_cast<std::size_t>((std::max)(0, Int(std::format("dish.{}.ns", r.ourDish))));
+				say(std::format("  ~  {}: another mod's model already shows on our {} for this recipe; made a dish of its own", label, Str(std::format("dish.{}.n", r.ourDish))));
+				verdict = FCPatch::DishVerdict::NewDish;
+				g_patchRows[rowIndex].kind = "New dish";
+				if (!g_patchRows[rowIndex].edited && !g_patchRows[rowIndex].patched) g_patchRows[rowIndex].autoKind = "New dish";
+			}
+			if (verdict == FCPatch::DishVerdict::OwnLook && r.ourDish >= 0) {
+				++n.ownLooks;
+				say(std::format("  *  {}: a look of our {}; its model shows when {} is the main ingredient", label, Str(std::format("dish.{}.n", r.ourDish)), r.slots.empty() ? std::string("its ingredient") : (r.slots.front().named ? r.slots.front().text : AnyLabel(r.slots.front().text))));
+				continue;
+			}
+			switch (verdict) {
 			case FCPatch::DishVerdict::VanillaLook: ++n.vanillaLook; say("  =  " + label + ": looks like a vanilla dish, our rules already make it"); continue;
-			case FCPatch::DishVerdict::SameLook: ++n.sameLook; say("  =  " + label + ": same look as " + (r.sameAs < inputs.size() ? inputs[r.sameAs].name : std::string("another dish"))); continue;
+			case FCPatch::DishVerdict::SameLook: {
+				++n.sameLook;
+				// the same model as an earlier mod dish (Gourmet's Mammoth and Goat Stew use its Ash Hopper Stew's model): a look
+				// of its own on our dish of its kind that takes its main ingredient, through the same gate, so mammoth stew shows
+				// it too (a sense check of 2026-11-24). Its own entry, not a widened earlier one: widening changed which look wins
+				// elsewhere (review round 5). Not taken: the model still shows where the earlier dish shows it
+				const auto host = ourDishFor(i, r);
+				if (host >= 0 && tryLook(host)) {
+					--n.sameLook;
+					++n.ownLooks;
+					say(std::format("  *  {}: same look as {}; a look of our {} too, shown when {} is the main ingredient", label, inputs[r.sameAs].name, Str(std::format("dish.{}.n", host)), r.slots.empty() ? std::string("its ingredient") : (r.slots.front().named ? r.slots.front().text : AnyLabel(r.slots.front().text))));
+					continue;
+				}
+				if (host >= 0 && form) g_dishByBase.emplace(form->GetFormID(), host);  // eating it still teaches our dish (review round 6, R6-1)
+				say("  =  " + label + ": same look as " + (r.sameAs < inputs.size() ? inputs[r.sameAs].name : std::string("another dish")));
+				continue;
+			}
 			case FCPatch::DishVerdict::Variant: ++n.variants; say("  =  " + label + ": a variant of an existing dish"); continue;
 			case FCPatch::DishVerdict::Misc: ++n.misc; say("  M  " + label + ": Misc (" + r.why + "), not in the pot's rules"); continue;
 			case FCPatch::DishVerdict::NoLook: say("  -  " + label + ": no mesh, left out"); continue;
@@ -1207,44 +1384,50 @@
 			CookingMenu::Dish screen;
 			screen.index = next;
 			screen.name = r.displayName;
-			screen.tier = r.tier == "Elaborate" ? 4 : r.tier == "Prepared" ? 2 : 0;
+			screen.tier = r.tier == "Elaborate" ? 4 : r.tier == "Prepared" ? 2 : 1;  // base stars; Simple 1 (his call 2026-11-23)
 			screen.drink = words.GroupOf(d.name) == "Drinks";
 			std::vector<std::string> sets;
 			std::vector<int>         named;
-			bool                     ok = !r.slots.empty();
-			for (auto& s : r.slots) {
-				CookingMenu::Slot slot;
-				std::string       set = "|";
-				if (s.named && !s.key.empty()) {
-					// chosen by hand: only that item, even when another mod has an item of the same name
-					if (const auto it = itemOfKey.find(s.key); it != itemOfKey.end()) {
-						slot.options.push_back(it->second);
-						set += PlainKeyOf(it->second) + "|";
+			// the slots as rule keys (sets, named) and as the cooking screen's choices; false: a slot nothing fills
+			const auto buildSlots = [&](const std::vector<FCPatch::DishSlot>& a_slots) {
+				sets.clear();
+				named.clear();
+				screen.slots.clear();
+				if (a_slots.empty()) return false;
+				for (auto& s : a_slots) {
+					CookingMenu::Slot slot;
+					std::string       set = "|";
+					if (s.named && !s.key.empty()) {
+						// chosen by hand: only that item, even when another mod has an item of the same name
+						if (const auto it = itemOfKey.find(s.key); it != itemOfKey.end()) {
+							slot.options.push_back(it->second);
+							set += PlainKeyOf(it->second) + "|";
+						}
+					} else if (s.named) {
+						for (auto& k : keysByName[Lower(s.text)]) set += k + "|";
+						for (auto& [item, group] : tableItems) {
+							if (Lower(NameOf(item)) == Lower(s.text)) slot.options.push_back(item);
+						}
+						for (auto& p : patched) {
+							if (Lower(NameOf(p.item)) == Lower(s.text)) slot.options.push_back(p.item);
+						}
+					} else {
+						const auto* cat = FCPatch::SlotCategoryOf(s.text);
+						slot.label = cat ? std::string(cat->label) : AnyLabel(s.text);  // the label our own recipes use
+						for (auto item : itemsByGroup[s.text]) {
+							slot.options.push_back(item);
+							set += PlainKeyOf(item) + "|";
+						}
 					}
-				} else if (s.named) {
-					for (auto& k : keysByName[Lower(s.text)]) set += k + "|";
-					for (auto& [item, group] : tableItems) {
-						if (Lower(NameOf(item)) == Lower(s.text)) slot.options.push_back(item);
-					}
-					for (auto& p : patched) {
-						if (Lower(NameOf(p.item)) == Lower(s.text)) slot.options.push_back(p.item);
-					}
-				} else {
-					const auto* cat = FCPatch::SlotCategoryOf(s.text);
-					slot.label = cat ? std::string(cat->label) : AnyLabel(s.text);  // the label our own recipes use
-					for (auto item : itemsByGroup[s.text]) {
-						slot.options.push_back(item);
-						set += PlainKeyOf(item) + "|";
-					}
+					if (slot.options.empty()) return false;
+					sets.push_back(set);
+					named.push_back(s.named ? 1 : 0);
+					screen.slots.push_back(std::move(slot));
 				}
-				if (slot.options.empty()) {
-					ok = false;
-					break;
-				}
-				sets.push_back(set);
-				named.push_back(s.named ? 1 : 0);
-				screen.slots.push_back(std::move(slot));
-			}
+				return true;
+			};
+			bool ok = buildSlots(r.slots);
+			auto slots = r.slots;  // the recipe; one star up when it clashes (below)
 			if (!ok) {
 				if (form) g_patchHidden.insert(form->GetFormID());
 				g_patchRows[rowIndex].kind = "No ingredient fits a slot";
@@ -1253,10 +1436,71 @@
 			}
 			// the same recipe as a dish the pot already makes (ours, or one added just before): that dish covers it, like a
 			// variant (his call 2026-11-14: "does it matter if your crab pie has a different name?"); the player can still give
-			// it another recipe on the patcher page to make it a dish of its own
-			const auto sig = RecipeSigOfSets(sets);
+			// it another recipe on the patcher page to make it a dish of its own. Not when it has a model of its own no dish
+			// shows yet (his call 2026-11-24: "it doesnt matter if it has a different name. but it matters if it has a unique
+			// model"): it stays a dish with that recipe, and the pot makes it when its recipe is picked from the Recipes list
+			// (ChooseDish prefers the picked recipe on a tie)
+			auto sig = RecipeSigOfSets(sets);
 			const bool ovenDish = (stations[i][1] && !stations[i][0] && !stations[i][2]) || r.baked;
-			if (auto clash = g_recipeSigs.find(PlaceSig(ovenDish, sig)); clash != g_recipeSigs.end() && !clash->second.empty()) {
+			const std::string ownLook = d.model + "|" + d.textureSwap;
+			const bool uniqueModel = !d.model.empty() && (!d.vanillaModel || !d.textureSwap.empty()) && !dishLooks.contains(ownLook);
+			auto clash = g_recipeSigs.find(PlaceSig(ovenDish, sig));
+			// flexible stars (the general dishes' tier rule, his call 2026-11-24): a dish with a model of its own whose recipe
+			// another dish already has moves up one star, with one more slot: a group of its own mod's recipe it doesn't use
+			// yet, else the groups our recipes add (vegetables, dairy, flour...), up to Elaborate. A fuller pot then makes it
+			std::string raisedFrom;
+			// (and a dish whose look lost on one of ours: above that dish's slots, so a pot that fills it makes this one and
+			// a smaller pot still shows the other model)
+			const auto mustRaise = [&](const std::vector<FCPatch::DishSlot>& a_slots) {
+				return (clash != g_recipeSigs.end() && !clash->second.empty()) || a_slots.size() <= mustExceed;
+			};
+			if ((clash != g_recipeSigs.end() && !clash->second.empty() && uniqueModel) || slots.size() <= mustExceed) {
+				std::vector<std::string> extra;
+				for (const auto& rc : d.recipes) {
+					for (const auto& it : rc.items) {
+						if (it.hidden || it.notFood || it.name.empty()) continue;
+						const auto g = words.GroupOf(it.name);
+						if (!g.empty() && g != "Staples" && g != "Drinks" && std::ranges::find(extra, g) == extra.end()) extra.push_back(g);
+					}
+				}
+				for (const char* g : { "Vegetables", "Dairy", "Flour", "Egg", "Mushrooms", "Grain", "Sweeteners", FCPatch::HERB_OR_SALT }) {
+					if (std::ranges::find(extra, g) == extra.end()) extra.push_back(g);
+				}
+				const auto before = r.tier;
+				auto       trySlots = slots;
+				std::size_t nextExtra = 0;
+				while (mustRaise(trySlots) && trySlots.size() < 3 && nextExtra < extra.size()) {
+					const auto& g = extra[nextExtra++];
+					if (FCPatch::GroupRestriction(g) != FCPatch::Restriction::None || itemsByGroup[g].empty()) continue;
+					if (std::ranges::any_of(trySlots, [&](const FCPatch::DishSlot& a_s) { return !a_s.named && a_s.text == g; })) continue;
+					auto grown = trySlots;
+					grown.push_back({ false, g, {} });
+					if (!buildSlots(grown)) continue;
+					trySlots = grown;
+					sig = RecipeSigOfSets(sets);
+					clash = g_recipeSigs.find(PlaceSig(ovenDish, sig));
+				}
+				if (!mustRaise(trySlots)) {
+					slots = trySlots;
+					raisedFrom = before;
+					screen.tier = slots.size() >= 3 ? 4 : slots.size() == 2 ? 2 : 1;
+					// the page and Export show the recipe the pot really uses (reviews 2026-11-24 round 5)
+					auto& pageRow = g_patchRows[rowIndex];
+					pageRow.tier = slots.size() >= 3 ? "Elaborate" : slots.size() == 2 ? "Prepared" : "Simple";
+					pageRow.slots = slotEdits(slots);
+					if (!pageRow.edited && !pageRow.patched) {
+						pageRow.autoTier = pageRow.tier;
+						pageRow.autoSlots = pageRow.slots;
+					}
+				} else {
+					buildSlots(slots);  // no free recipe up to Elaborate: back to its own recipe (picked from the Recipes list)
+					sig = RecipeSigOfSets(sets);
+					clash = g_recipeSigs.find(PlaceSig(ovenDish, sig));
+				}
+			}
+			if (clash != g_recipeSigs.end() && !clash->second.empty() && uniqueModel) {
+				say("  ~  " + label + ": same recipe as " + clash->second.front().first + ", kept for its own model (made when its recipe is picked)");
+			} else if (clash != g_recipeSigs.end() && !clash->second.empty()) {
 				auto& pageRow = g_patchRows[rowIndex];
 				const auto other = clash->second.front().first;
 				pageRow.kind = "Variant";
@@ -1268,6 +1512,7 @@
 				continue;
 			}
 			g_recipeSigs[PlaceSig(ovenDish, sig)].emplace_back(r.displayName, g_patchRows[rowIndex].key);
+			dishLooks.insert(ownLook);
 			const auto idx = next++;
 			g_str[Lower(std::format("dish.{}.n", idx))] = r.displayName;
 			g_str[Lower(std::format("dish.{}.p", idx))] = d.plugin;
@@ -1294,7 +1539,7 @@
 					say("  #  " + label + ": unlocks with its mod's quest, like its own recipe");
 				}
 			}
-			if (!baked && (stations[i][2] || (r.tier == "Simple" && !screen.drink))) g_int[Lower(std::format("dish.{}.spit", idx))] = 1;  // grilled or roasted: a campfire too
+			if (!baked && (stations[i][2] || (raisedFrom.empty() && r.tier == "Simple" && !screen.drink))) g_int[Lower(std::format("dish.{}.spit", idx))] = 1;  // grilled or roasted: a campfire too
 			if (screen.drink) g_int[Lower(std::format("dish.{}.pr", idx))] = 2;  // a drink, like the brews: made only when no food dish matches
 			g_int[Lower(std::format("dish.{}.ns", idx))] = static_cast<std::int32_t>(sets.size());
 			for (std::size_t j = 0; j < sets.size(); ++j) {
@@ -1325,16 +1570,287 @@
 			g_dishes.push_back(std::move(screen));
 			++n.newDishes;
 			std::string slotText;
-			for (auto& s : r.slots) slotText += (slotText.empty() ? "" : " + ") + (s.named ? s.text : AnyLabel(s.text));
-			say(std::format("  +  {}: new dish \"{}\", {} ({}), {}", label, r.displayName, r.tier, r.why, slotText));
+			for (auto& s : slots) slotText += (slotText.empty() ? "" : " + ") + (s.named ? s.text : AnyLabel(s.text));
+			const std::string tierText = slots.size() >= 3 ? "Elaborate" : slots.size() == 2 ? "Prepared" : "Simple";
+			if (!raisedFrom.empty()) say(std::format("  +  {}: new dish \"{}\", {} (one star up from {} so a pot shows its own model), {}", label, r.displayName, tierText, raisedFrom, slotText));
+			else say(std::format("  +  {}: new dish \"{}\", {} ({}), {}", label, r.displayName, r.tier, verdict != r.verdict ? std::string("its model could not show on our dish") : r.why, slotText));
+		}
+
+		// ---- general dishes made from the installed mods' dishes (his calls 2026-11-24): mod dishes of one kind (kind word,
+		// main group, station) give one dish of that kind for any item of the group, showing a mod's model. Our rules make
+		// its recipe; a recipe another dish already has moves it up a tier (2 stars, then 4), never out. An ingredient with
+		// its own mod dish of that kind still cooks that dish: named slots win (ChooseDish)
+		say("");
+		say("== General dishes from the installed mods");
+		{
+			std::vector<bool> oven(inputs.size());
+			for (std::size_t i = 0; i < inputs.size(); ++i) oven[i] = (i < stations.size() && stations[i][1] && !stations[i][0] && !stations[i][2]) || results[i].baked;
+			std::unordered_map<std::string, std::string> groupByName;  // a recipe item's group by its name (lower case)
+			for (const auto& [g, items] : itemsByGroup) {
+				if (!isGroup(g)) continue;  // our groups only, not the slot categories
+				for (auto* item : items) groupByName.emplace(Lower(NameOf(item)), g);
+			}
+			const auto groupOf = [&](const std::string& a_name) {
+				const auto it = groupByName.find(Lower(a_name));
+				return it == groupByName.end() ? std::string() : it->second;
+			};
+			// the keys of a family's items, for the covered check
+			const auto familyKeys = [&](const std::string& a_family) {
+				std::unordered_set<std::string> keys;
+				for (const auto& g : FCPatch::FamilyGroups(a_family)) {
+					for (auto* item : itemsByGroup[g]) keys.insert(PlainKeyOf(item));
+				}
+				return keys;
+			};
+			// a dish we already have of that kind at that station takes at least half the family in its first slot (for a
+			// Simple kind any one-slot dish of a Simple or no kind: Grilled Meat)
+			const auto covered = [&](const std::string& a_word, const std::string& a_family, bool a_oven, std::size_t a_slots) {
+				const auto keys = familyKeys(a_family);
+				if (keys.empty()) return true;
+				for (std::int32_t d = 0; d < next; ++d) {
+					const auto ns = Int(std::format("dish.{}.ns", d));
+					if (ns <= 0 || Int(std::format("dish.{}.off", d)) == 1 || (Int(std::format("dish.{}.ov", d)) == 1) != a_oven) continue;
+					bool cut = false;
+					const auto kind = words.KindWord(Str(std::format("dish.{}.n", d)), "", &cut);
+					const bool simpleKind = kind.empty() || cut || words.DishTier(kind) == "Simple";
+					if (kind != a_word && !(a_slots == 1 && ns == 1 && simpleKind)) continue;
+					std::size_t in = 0;
+					for (auto& k : Split(Str(std::format("dish.{}.s0", d)), '|')) {
+						if (!k.empty() && keys.contains(k)) ++in;
+					}
+					if (in * 2 >= keys.size()) return true;
+				}
+				return false;
+			};
+			// every pot that fills recipe B also fills recipe A: each slot of A takes a different slot of B whose items all
+			// fit it (A has at most as many slots as B)
+			using SlotSets = std::vector<std::unordered_set<std::string>>;
+			const auto slotSetsOf = [&](std::int32_t a_d) {
+				SlotSets out(std::max(0, Int(std::format("dish.{}.ns", a_d))));
+				for (std::size_t j = 0; j < out.size(); ++j) {
+					for (auto& k : Split(Str(std::format("dish.{}.s{}", a_d, j)), '|')) {
+						if (!k.empty()) out[j].insert(k);
+					}
+				}
+				return out;
+			};
+			const auto toSets = [](const std::vector<std::string>& a_sets) {
+				SlotSets out(a_sets.size());
+				for (std::size_t j = 0; j < a_sets.size(); ++j) {
+					for (auto& k : Split(a_sets[j], '|')) {
+						if (!k.empty()) out[j].insert(k);
+					}
+				}
+				return out;
+			};
+			const auto fillsEveryPotOf = [](const SlotSets& a_a, const SlotSets& a_b) {
+				if (a_a.empty() || a_a.size() > a_b.size()) return false;
+				std::vector<std::size_t> order(a_b.size());
+				for (std::size_t j = 0; j < order.size(); ++j) order[j] = j;
+				do {
+					bool fits = true;
+					for (std::size_t j = 0; j < a_a.size() && fits; ++j) {
+						for (const auto& k : a_b[order[j]]) {
+							if (!a_a[j].contains(k)) {
+								fits = false;
+								break;
+							}
+						}
+					}
+					if (fits) return true;
+				} while (std::next_permutation(order.begin(), order.end()));
+				return false;
+			};
+			// a dish we already have that this recipe could never be made past (none: ""): a drink all of whose pots it fills
+			// (meals go first), or a dish with as many slots that fills every pot of it (the earlier dish wins the tie; ours
+			// win every tie, his rule)
+			const auto hiddenBy = [&](const std::vector<std::string>& a_sets, bool a_oven) -> std::string {
+				const auto mine = toSets(a_sets);
+				for (std::int32_t d = 0; d < next; ++d) {
+					if (Int(std::format("dish.{}.off", d)) == 1 || (Int(std::format("dish.{}.ov", d)) == 1) != a_oven) continue;
+					const auto theirs = slotSetsOf(d);
+					if (theirs.empty()) continue;
+					if (Int(std::format("dish.{}.pr", d)) == 2) {
+						if (fillsEveryPotOf(mine, theirs)) return Str(std::format("dish.{}.n", d)) + " (a drink it would hide)";
+					} else if (theirs.size() == mine.size() && fillsEveryPotOf(theirs, mine)) {
+						return Str(std::format("dish.{}.n", d));
+					}
+				}
+				return {};
+			};
+			auto kinds = FCPatch::FindGeneralKinds(inputs, results, oven, words, groupOf, covered);
+			// two kinds with the same recipe: the one more installed dishes use keeps it, the other moves up a tier
+			std::stable_sort(kinds.begin(), kinds.end(), [](const auto& a, const auto& b) { return a.sources.size() > b.sources.size(); });
+			std::int32_t made = 0;
+			std::set<std::size_t> kindLooks;  // the mod dishes whose model a general dish shows
+			for (auto& k : kinds) {
+				const auto& src = inputs[k.look];
+				const auto label = std::format("{} [{}, {}]", k.name, k.oven ? "oven" : "pot", k.id);
+				std::vector<std::string> sets;
+				std::vector<CookingMenu::Slot> slots;
+				std::string why;
+				bool placed = false;
+				std::size_t nextSwap = 0;
+				bool lowered = false;
+				for (int tries = 0; tries < 12 && !placed; ++tries) {
+					sets.clear();
+					slots.clear();
+					bool ok = true;
+					for (std::size_t j = 0; j < k.slots.size() && ok; ++j) {
+						CookingMenu::Slot slot;
+						std::string set = "|";
+						for (const auto& g : k.slots[j]) {
+							for (auto* item : itemsByGroup[g]) {
+								if (j == 0 && words.IsPreserved(NameOf(item))) continue;  // jerky, cured or smoked: already a food
+								const auto key = PlainKeyOf(item);
+								if (set.find("|" + key + "|") != std::string::npos) continue;
+								set += key + "|";
+								slot.options.push_back(item);
+							}
+						}
+						if (j == 0) {
+							slot.label = k.family == "Meat" ? "any meat" : k.family == "Fish" ? "any fish" : k.family == "Fruit" ? "any fruit or berry" : k.family == "Mushrooms" ? "any mushroom" : AnyLabel(k.family);
+						} else {
+							const auto* cat = FCPatch::SlotCategoryOf(k.slots[j][0]);
+							slot.label = cat ? std::string(cat->label) : AnyLabel(k.slots[j][0]);
+						}
+						slot.label = FC::Tr(slot.label.c_str());
+						ok = !slot.options.empty();
+						sets.push_back(set);
+						slots.push_back(std::move(slot));
+					}
+					if (!ok) {
+						why = "a slot nothing can fill";
+						break;
+					}
+					const auto sig = RecipeSigOfSets(sets);
+					std::string clash;
+					if (auto c2 = g_recipeSigs.find(PlaceSig(k.oven, sig)); c2 != g_recipeSigs.end() && !c2->second.empty()) clash = c2->second.front().first;
+					if (clash.empty()) clash = hiddenBy(sets, k.oven);
+					if (clash.empty()) {
+						placed = true;
+						break;
+					}
+					why = "same recipe as " + clash;
+					// the more complicated dish takes more ingredients (our tier rule): one tier up; at the top already (3
+					// ingredients), the less complicated one goes down to 2 stars, the new general dish (ours win every tie, his
+					// rule), and once there its second ingredient becomes the next group its mods' recipes use while it's taken
+					const auto before = k.tier;
+					const auto lastBefore = k.slots.back().front();
+					if (!lowered && FCPatch::RaiseGeneralKind(k)) {
+						say(std::format("  ^  {}: {} would always make {}; made {} instead of {}", label, k.name, clash, k.tier, before));
+					} else if (!lowered && FCPatch::LowerGeneralKind(k)) {
+						lowered = true;
+						say(std::format("  v  {}: {} would always make {}; made Prepared (2 stars) instead of {}", label, k.name, clash, before));
+					} else if (FCPatch::SwapGeneralKindLastSlot(k, nextSwap)) {
+						say(std::format("  ^  {}: {} would always make {}; its last ingredient is any {} instead of any {}", label, k.name, clash, k.slots.back().front(), lastBefore));
+					} else {
+						break;
+					}
+				}
+				if (!placed) {
+					// its models stay in the game as its mod dishes; only the general dish is missing (the report says so)
+					say(std::format("  !  {}: not made ({}); its models stay with its mod dishes", label, why));
+					continue;
+				}
+				const auto idx = next++;
+				const auto stars = k.tier == "Elaborate" ? 4 : k.tier == "Prepared" ? 2 : 1;
+				g_str[Lower(std::format("dish.{}.n", idx))] = k.name;
+				g_str[Lower(std::format("dish.{}.gw", idx))] = k.generalWord;
+				g_str[Lower(std::format("dish.{}.p", idx))] = src.plugin;
+				g_int[Lower(std::format("dish.{}.id", idx))] = static_cast<std::int32_t>(src.localId);
+				g_int[Lower(std::format("dish.{}.t", idx))] = stars;
+				g_int[Lower(std::format("dish.{}.dr", idx))] = 0;
+				g_int[Lower(std::format("dish.{}.fe", idx))] = 0;
+				if (k.oven) g_int[Lower(std::format("dish.{}.ov", idx))] = 1;
+				if (!k.oven && k.tier == "Simple") g_int[Lower(std::format("dish.{}.spit", idx))] = 1;  // grilled or roasted: a campfire too
+				g_int[Lower(std::format("dish.{}.ns", idx))] = static_cast<std::int32_t>(sets.size());
+				for (std::size_t j = 0; j < sets.size(); ++j) {
+					g_str[Lower(std::format("dish.{}.s{}", idx, j))] = sets[j];
+					g_int[Lower(std::format("dish.{}.nm{}", idx, j))] = 0;
+				}
+				const std::string shown = FC::Tr(k.name.c_str());
+				for (auto* f : flavours) {
+					g_str[Lower(std::format("dishc.{}.{}", idx, f))] = std::string(f) + " " + shown;  // (DishName names it after its main ingredient)
+				}
+				g_recipeSigs[PlaceSig(k.oven, RecipeSigOfSets(sets))].emplace_back(k.name, std::string());
+				g_dishSaveKeys[idx] = k.id;  // stable whatever mods load: the kind, never its position
+				// the main ingredient's short name, for the cooked name ("Leek Stew")
+				for (const auto& g : k.slots[0]) {
+					for (auto* item : itemsByGroup[g]) {
+						const auto key = PlainKeyOf(item);
+						if (Str("ish." + key).empty()) {
+							if (const auto s = words.ShortName(NameOf(item)); !s.empty()) g_str["ish." + key] = s;
+						}
+					}
+				}
+				CookingMenu::Dish screen;
+				screen.index = idx;
+				screen.name = shown;
+				screen.tier = stars;
+				screen.slots = std::move(slots);
+				g_dishes.push_back(std::move(screen));
+				++made;
+				kindLooks.insert(k.look);
+				std::string slotText, models;
+				for (const auto& s : k.slots) {
+					std::string one;
+					for (const auto& g : s) one += (one.empty() ? "" : " or ") + g;
+					slotText += (slotText.empty() ? "any " : " + any ") + one;
+				}
+				for (const auto& m : k.models) models += (models.empty() ? "" : ", ") + m;
+				say(std::format("  +  {}: {} ({} stars), {}; {} dishes of {} items; look {} [{}|{:06X}]; models: {}", label, k.tier, stars, slotText, k.sources.size(), k.items, src.name, src.plugin, src.localId, models));
+			}
+			say(std::format("General dishes from mods: {} of {} kinds", made, kinds.size()));
+
+			// every mod's art used (his rule 2026-11-24, "under no circumstance we drop the art from a creator"): each model a
+			// mod ships, on a dish the pot makes. The report names any that isn't, so it can be fixed
+			std::set<std::string> shown, all;
+			for (std::size_t i = 0; i < inputs.size(); ++i) {
+				const auto& d = inputs[i];
+				if (d.model.empty() || (d.vanillaModel && d.textureSwap.empty())) continue;
+				const auto v = results[i].verdict;
+				if (v == FCPatch::DishVerdict::Misc || v == FCPatch::DishVerdict::LeftOut) continue;  // made from Misc as its mod made it; left out by the player
+				const std::string look = d.model + (d.textureSwap.empty() ? "" : " (" + d.textureSwap + ")");
+				all.insert(look);
+				if (const auto o = ownLooks.find(i); o != ownLooks.end()) {
+					// a look of our dish: shown when a pot of its own recipe, with one of its main ingredients as the main one,
+					// picks it (ChooseLook), not just registered
+					const auto pot = potOfRecipe(d);
+					std::int32_t at = -1;
+					for (std::int32_t k = 0; k < Int(std::format("lk.{}.n", o->second)); ++k) {
+						if (Str(std::format("lk.{}.{}.p", o->second, k)) == d.plugin && Int(std::format("lk.{}.{}.id", o->second, k)) == static_cast<std::int32_t>(d.localId)) at = k;
+					}
+					const auto mains = Str(std::format("lk.{}.{}.m", o->second, at));
+					for (const auto& m : Split(mains, '|')) {
+						auto withMain = pot;  // a real pot always holds its main ingredient
+						if (std::ranges::find(withMain, m) == withMain.end()) withMain.push_back(m);
+						if (!m.empty() && at >= 0 && InKeySet(Str(std::format("dish.{}.s0", o->second)), m) && ChooseLook(o->second, withMain, m) == at) {
+							shown.insert(look);
+							break;
+						}
+					}
+				}
+				else if (v == FCPatch::DishVerdict::SameLook) continue;  // shown when the dish of that look is (counted there); its
+				                                                          // g_dishByBase entry says nothing about whether a pot shows it
+				else if (forms[i] && g_dishByBase.contains(forms[i]->GetFormID())) shown.insert(look);
+				else if (kindLooks.contains(i)) shown.insert(look);  // a general dish shows it
+			}
+			std::size_t unused = 0;
+			for (const auto& look : all) {
+				if (shown.contains(look)) continue;
+				++unused;
+				say("  !  mod model not on any dish: " + look);
+			}
+			say(std::format("Mod models on dishes: {} of {}", all.size() - unused, all.size()));
 		}
 
 		// (the fallback dishes Grilled Meat and Grilled Fish of 2026-11-13 are general dishes now: see "general dishes" above)
 
 		const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count();
 		say("");
-		say(std::format("Totals: {} new ingredients ({} joined recipe slots), {} not recognised; {} new dishes, {} with a vanilla look, {} with a modded look already used, {} variants, {} Misc. {} ms.",
-			n.ingredients, n.slotsJoined, n.unknown, n.newDishes, n.vanillaLook, n.sameLook, n.variants, n.misc, ms));
+		say(std::format("Totals: {} new ingredients ({} joined recipe slots), {} not recognised; {} new dishes, {} looks of our dishes, {} with a vanilla look, {} with a modded look already used, {} variants, {} Misc. {} ms.",
+			n.ingredients, n.slotsJoined, n.unknown, n.newDishes, n.ownLooks, n.vanillaLook, n.sameLook, n.variants, n.misc, ms));
 		logger::info("Patcher: {} new ingredients, {} not recognised, {} new dishes ({} vanilla look, {} same look, {} variants, {} Misc) in {} ms; report in FreeCooking_Patcher.txt",
 			n.ingredients, n.unknown, n.newDishes, n.vanillaLook, n.sameLook, n.variants, n.misc, ms);
 		g_patcherRan = true;
